@@ -2,9 +2,11 @@ import { Excalidraw } from '@excalidraw/excalidraw'
 import '@excalidraw/excalidraw/index.css'
 import type { ExcalidrawSceneData } from '@excalimore/types'
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
+import { useMe } from '../api/auth'
 import { useSaveScene, useScene } from '../api/scenes'
 import { debounce } from '../lib/debounce'
+import { CommentOverlay, type ExcalidrawApiLite } from './-components/CommentOverlay'
 
 export const Route = createFileRoute('/_authed/scenes/$id')({
   component: SceneEditorPage,
@@ -59,19 +61,29 @@ function fingerprintElements(elements: readonly unknown[]): string {
 function SceneEditorPage() {
   const { id } = Route.useParams()
   const sceneQ = useScene(id)
+  const meQ = useMe()
   const save = useSaveScene(id)
   const lastFingerprintRef = useRef<string | null>(null)
+  const apiRef = useRef<ExcalidrawApiLite | null>(null)
+  // `tick` re-renders the comment overlay when Excalidraw's onChange fires.
+  // The viewport (scrollX/scrollY/zoom) changes drive a render so pins follow
+  // pan/zoom; we never persist on viewport-only changes thanks to the
+  // fingerprint guard above.
+  const [tick, setTick] = useState(0)
+  const [sidebarSlot, setSidebarSlot] = useState<HTMLDivElement | null>(null)
 
   const debouncedSave = useMemo(
     () =>
       debounce((data: ExcalidrawSceneData) => {
         save.mutateAsync(data).catch((err) => {
-          // Surface failures lightly — full error UX in Phase 5.
+          // Surface failures lightly — full error UX is post-MVP.
           console.error('save failed:', err)
         })
       }, 2000),
     [save],
   )
+
+  const lastViewportRef = useRef<{ scrollX: number; scrollY: number; zoom: number } | null>(null)
 
   const handleChange = useCallback(
     (
@@ -79,12 +91,32 @@ function SceneEditorPage() {
       appState: Record<string, unknown>,
       files: Record<string, unknown>,
     ) => {
+      // Bump tick only when the viewport (scrollX/scrollY/zoom) actually
+      // changed. Excalidraw fires onChange for many internal events including
+      // re-renders triggered by our own setTick — bumping unconditionally
+      // causes a state-update loop ("Maximum update depth exceeded").
+      const a = appState as { scrollX?: number; scrollY?: number; zoom?: { value?: number } }
+      const next = {
+        scrollX: typeof a.scrollX === 'number' ? a.scrollX : 0,
+        scrollY: typeof a.scrollY === 'number' ? a.scrollY : 0,
+        zoom: typeof a.zoom?.value === 'number' ? a.zoom.value : 1,
+      }
+      const prev = lastViewportRef.current
+      if (
+        !prev ||
+        prev.scrollX !== next.scrollX ||
+        prev.scrollY !== next.scrollY ||
+        prev.zoom !== next.zoom
+      ) {
+        lastViewportRef.current = next
+        setTick((t) => t + 1)
+      }
+
       // Excalidraw fires onChange for camera/viewport changes too. Save only
       // when the elements actually mutated, so saving stays quiet while the
       // user is just panning, zooming, or selecting.
       const fingerprint = fingerprintElements(elements)
       if (lastFingerprintRef.current === null) {
-        // First call after hydrate — record but don't save.
         lastFingerprintRef.current = fingerprint
         return
       }
@@ -101,8 +133,34 @@ function SceneEditorPage() {
     [debouncedSave],
   )
 
-  // Build the initialData passed to <Excalidraw />. Pruning the persisted
-  // appState here means we never feed the editor a stale Map-shaped field.
+  // View-only role: bump tick when viewport changes only.
+  const handleViewportTick = useCallback((_elements: unknown, appState: unknown) => {
+    const a = appState as { scrollX?: number; scrollY?: number; zoom?: { value?: number } }
+    const next = {
+      scrollX: typeof a.scrollX === 'number' ? a.scrollX : 0,
+      scrollY: typeof a.scrollY === 'number' ? a.scrollY : 0,
+      zoom: typeof a.zoom?.value === 'number' ? a.zoom.value : 1,
+    }
+    const prev = lastViewportRef.current
+    if (
+      !prev ||
+      prev.scrollX !== next.scrollX ||
+      prev.scrollY !== next.scrollY ||
+      prev.zoom !== next.zoom
+    ) {
+      lastViewportRef.current = next
+      setTick((t) => t + 1)
+    }
+  }, [])
+
+  // Stable callback for Excalidraw's `excalidrawAPI` prop. Inline arrow
+  // functions cause Excalidraw to re-mount on every parent render, which in
+  // turn re-fires its onChange — combined with our setTick that triggers an
+  // infinite update loop ("Maximum update depth exceeded").
+  const setApi = useCallback((api: unknown) => {
+    apiRef.current = api as ExcalidrawApiLite
+  }, [])
+
   const initialData = useMemo(() => {
     if (!sceneQ.data) return null
     const { data } = sceneQ.data.scene
@@ -130,9 +188,8 @@ function SceneEditorPage() {
   const { scene, role } = sceneQ.data
   // role is undefined when the user is the owner (server omits it for owners).
   const canEdit = role === undefined || role === 'owner' || role === 'edit'
+  const isOwner = role === undefined || role === 'owner'
 
-  // Preserve folder context: if the scene lives in a folder, the back link
-  // returns to the home grid filtered to that folder.
   const backSearch = scene.folderId ? { folder: scene.folderId } : {}
 
   return (
@@ -154,16 +211,27 @@ function SceneEditorPage() {
         {!canEdit && <span className="muted">view-only</span>}
         {save.isPending && <span className="muted">saving…</span>}
       </header>
-      <div style={{ flex: 1, position: 'relative' }}>
-        <Excalidraw
-          // Excalidraw owns the element/appState type. We persist the JSON
-          // verbatim (loose `unknown[]` in our schema) and hand it back here
-          // after pruning runtime-only state (Map fields don't JSON-round-trip).
-          initialData={initialData as never}
-          onChange={canEdit ? (handleChange as never) : undefined}
-          viewModeEnabled={!canEdit}
-          theme="light"
-        />
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
+          <Excalidraw
+            excalidrawAPI={setApi as never}
+            initialData={initialData as never}
+            onChange={canEdit ? (handleChange as never) : (handleViewportTick as never)}
+            viewModeEnabled={!canEdit}
+            theme="light"
+          />
+          {meQ.data && (
+            <CommentOverlay
+              sceneId={id}
+              apiRef={apiRef}
+              tick={tick}
+              currentUserId={meQ.data.id}
+              isOwner={isOwner}
+              sidebarSlot={sidebarSlot}
+            />
+          )}
+        </div>
+        <div ref={setSidebarSlot} style={{ display: 'flex' }} />
       </div>
     </div>
   )
