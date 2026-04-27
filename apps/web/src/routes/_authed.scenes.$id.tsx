@@ -2,7 +2,7 @@ import { Excalidraw } from '@excalidraw/excalidraw'
 import '@excalidraw/excalidraw/index.css'
 import type { ExcalidrawSceneData } from '@excalimore/types'
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 import { useSaveScene, useScene } from '../api/scenes'
 import { debounce } from '../lib/debounce'
 
@@ -41,10 +41,26 @@ function pruneAppState(appState: Record<string, unknown> | undefined): Record<st
   return out
 }
 
+/**
+ * A short fingerprint of the elements that mutates only when the user actually
+ * edits the board. Excalidraw bumps `version` and `versionNonce` on every real
+ * change but keeps them stable for camera/viewport changes — so this is enough
+ * to skip saves that wouldn't change the persisted scene.
+ */
+function fingerprintElements(elements: readonly unknown[]): string {
+  let acc = `${elements.length}`
+  for (const el of elements) {
+    const e = el as { id?: string; version?: number; versionNonce?: number; isDeleted?: boolean }
+    acc += `|${e.id}:${e.version}:${e.versionNonce}:${e.isDeleted ? 1 : 0}`
+  }
+  return acc
+}
+
 function SceneEditorPage() {
   const { id } = Route.useParams()
   const sceneQ = useScene(id)
   const save = useSaveScene(id)
+  const lastFingerprintRef = useRef<string | null>(null)
 
   const debouncedSave = useMemo(
     () =>
@@ -63,6 +79,18 @@ function SceneEditorPage() {
       appState: Record<string, unknown>,
       files: Record<string, unknown>,
     ) => {
+      // Excalidraw fires onChange for camera/viewport changes too. Save only
+      // when the elements actually mutated, so saving stays quiet while the
+      // user is just panning, zooming, or selecting.
+      const fingerprint = fingerprintElements(elements)
+      if (lastFingerprintRef.current === null) {
+        // First call after hydrate — record but don't save.
+        lastFingerprintRef.current = fingerprint
+        return
+      }
+      if (lastFingerprintRef.current === fingerprint) return
+      lastFingerprintRef.current = fingerprint
+
       debouncedSave({
         type: 'excalidraw',
         elements: elements as unknown[],
@@ -103,6 +131,10 @@ function SceneEditorPage() {
   // role is undefined when the user is the owner (server omits it for owners).
   const canEdit = role === undefined || role === 'owner' || role === 'edit'
 
+  // Preserve folder context: if the scene lives in a folder, the back link
+  // returns to the home grid filtered to that folder.
+  const backSearch = scene.folderId ? { folder: scene.folderId } : {}
+
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <header
@@ -115,7 +147,7 @@ function SceneEditorPage() {
           background: 'white',
         }}
       >
-        <Link to="/" style={{ textDecoration: 'none', color: '#1971c2' }}>
+        <Link to="/" search={backSearch} style={{ textDecoration: 'none', color: '#1971c2' }}>
           ← Scenes
         </Link>
         <strong>{scene.name}</strong>

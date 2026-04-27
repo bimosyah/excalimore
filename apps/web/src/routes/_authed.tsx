@@ -1,4 +1,4 @@
-import { Outlet, createFileRoute, redirect } from '@tanstack/react-router'
+import { Outlet, createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useLogout, useMe } from '../api/auth'
 import { FolderSidebar } from './-components/FolderSidebar'
 
@@ -15,6 +15,7 @@ export const Route = createFileRoute('/_authed')({
 function AuthedLayout() {
   const me = useMe()
   const logout = useLogout()
+  const navigate = useNavigate()
 
   return (
     <div className="app-shell">
@@ -24,7 +25,10 @@ function AuthedLayout() {
           {me.data && (
             <button
               type="button"
-              onClick={() => logout.mutateAsync()}
+              onClick={async () => {
+                await logout.mutateAsync()
+                navigate({ to: '/login' })
+              }}
               className="app-link-button"
               disabled={logout.isPending}
             >

@@ -17,7 +17,7 @@ function buildTestApp() {
   const app = new Hono<AppEnv>()
   app.use('*', injectContext(db, env))
   app.use('*', loadSession())
-  app.route('/api/auth', buildAuthRouter())
+  app.route('/api/auth', buildAuthRouter(env))
   return { app, db, env }
 }
 

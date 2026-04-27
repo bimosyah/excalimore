@@ -32,6 +32,9 @@ export default defineConfig({
       port: 3000,
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
+      // Tests exercise signup/login dozens of times; the production-default
+      // 5/min IP rate limit would trip the suite. Bump for the test process.
+      env: { RATE_LIMIT_LOGIN: '1000' },
     },
     {
       command: 'pnpm --filter @excalimore/web dev',
