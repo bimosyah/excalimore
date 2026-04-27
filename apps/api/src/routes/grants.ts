@@ -48,19 +48,17 @@ export function buildGrantsRouter(): Hono<AppEnv> {
   })
 
   app.get('/', async (c) => {
-    const sceneId = c.req.param('sceneId')!
-    const rows = await c.var.db
-      .select()
-      .from(shareGrants)
-      .where(eq(shareGrants.sceneId, sceneId))
+    const sceneId = c.req.param('sceneId') ?? ''
+    const rows = await c.var.db.select().from(shareGrants).where(eq(shareGrants.sceneId, sceneId))
     return c.json({ grants: rows.map(serialize) })
   })
 
   app.post('/', csrfProtect(), async (c) => {
-    const sceneId = c.req.param('sceneId')!
+    const sceneId = c.req.param('sceneId') ?? ''
     const body = CreateGrantRequestSchema.safeParse(await c.req.json().catch(() => null))
     if (!body.success) throw httpError('invalid_input', 'invalid grant body')
-    const me = c.var.user!
+    const me = c.var.user
+    if (!me) throw httpError('unauthorized', 'authentication required')
     try {
       const [row] = await c.var.db
         .insert(shareGrants)
@@ -87,8 +85,8 @@ export function buildGrantsRouter(): Hono<AppEnv> {
   })
 
   app.delete('/:grantId', csrfProtect(), async (c) => {
-    const sceneId = c.req.param('sceneId')!
-    const grantId = c.req.param('grantId')!
+    const sceneId = c.req.param('sceneId') ?? ''
+    const grantId = c.req.param('grantId') ?? ''
     const result = await c.var.db
       .delete(shareGrants)
       .where(and(eq(shareGrants.id, grantId), eq(shareGrants.sceneId, sceneId)))

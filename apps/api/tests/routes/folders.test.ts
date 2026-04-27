@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { buildFoldersRouter } from '../../src/routes/folders'
 import type { DbClient } from '../../src/db/client'
 import { folders, users } from '../../src/db/schema'
+import { buildFoldersRouter } from '../../src/routes/folders'
 import { buildAuthedApp, createTestUser, csrfHeaders, getTestDb } from '../helpers'
 
 let db: DbClient
@@ -112,10 +112,7 @@ describe('POST /folders', () => {
 describe('PATCH /folders/:id', () => {
   it('renames a folder', async () => {
     const { row: alice } = await createTestUser(db, { password: 'pw' })
-    const [folder] = await db
-      .insert(folders)
-      .values({ ownerId: alice.id, name: 'old' })
-      .returning()
+    const [folder] = await db.insert(folders).values({ ownerId: alice.id, name: 'old' }).returning()
 
     const { app } = buildAuthedApp(alice)
     app.route('/folders', buildFoldersRouter())
@@ -133,10 +130,7 @@ describe('PATCH /folders/:id', () => {
   it('returns 404 when patching another users folder', async () => {
     const { row: alice } = await createTestUser(db, { password: 'pw' })
     const { row: bob } = await createTestUser(db, { password: 'pw' })
-    const [folder] = await db
-      .insert(folders)
-      .values({ ownerId: bob.id, name: 'bob' })
-      .returning()
+    const [folder] = await db.insert(folders).values({ ownerId: bob.id, name: 'bob' }).returning()
 
     const { app } = buildAuthedApp(alice)
     app.route('/folders', buildFoldersRouter())

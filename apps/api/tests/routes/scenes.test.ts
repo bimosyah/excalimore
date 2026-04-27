@@ -1,9 +1,9 @@
 import type { ExcalidrawSceneData } from '@excalimore/types'
 import { eq } from 'drizzle-orm'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { buildScenesRouter } from '../../src/routes/scenes'
 import type { DbClient } from '../../src/db/client'
 import { scenes, shareGrants, users } from '../../src/db/schema'
+import { buildScenesRouter } from '../../src/routes/scenes'
 import { buildAuthedApp, createTestUser, csrfHeaders, getTestDb } from '../helpers'
 
 let db: DbClient

@@ -64,4 +64,3 @@ export function csrfHeaders(extra: Record<string, string> = {}): Record<string, 
     ...extra,
   }
 }
-

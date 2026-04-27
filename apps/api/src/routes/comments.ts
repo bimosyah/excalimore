@@ -44,8 +44,9 @@ export function buildCommentsRouter(): Hono<AppEnv> {
   app.use('*', requireAuth())
 
   app.get('/', async (c) => {
-    const sceneId = c.req.param('sceneId')!
-    const me = c.var.user!
+    const sceneId = c.req.param('sceneId') ?? ''
+    const me = c.var.user
+    if (!me) throw httpError('unauthorized', 'authentication required')
     const role = await getSceneAccess(c.var.db, me.id, sceneId)
     if (!roleAllows(role, 'view')) throw httpError('not_found', 'scene not found')
 
@@ -58,8 +59,9 @@ export function buildCommentsRouter(): Hono<AppEnv> {
   })
 
   app.post('/', csrfProtect(), async (c) => {
-    const sceneId = c.req.param('sceneId')!
-    const me = c.var.user!
+    const sceneId = c.req.param('sceneId') ?? ''
+    const me = c.var.user
+    if (!me) throw httpError('unauthorized', 'authentication required')
     const role = await getSceneAccess(c.var.db, me.id, sceneId)
     if (!roleAllows(role, 'view')) throw httpError('not_found', 'scene not found')
 
@@ -95,7 +97,8 @@ export function buildCommentItemRouter(): Hono<AppEnv> {
 
   app.patch('/:id', csrfProtect(), async (c) => {
     const id = c.req.param('id')
-    const me = c.var.user!
+    const me = c.var.user
+    if (!me) throw httpError('unauthorized', 'authentication required')
     const db = c.var.db
 
     const rows = await db.select().from(comments).where(eq(comments.id, id)).limit(1)
@@ -131,7 +134,8 @@ export function buildCommentItemRouter(): Hono<AppEnv> {
 
   app.delete('/:id', csrfProtect(), async (c) => {
     const id = c.req.param('id')
-    const me = c.var.user!
+    const me = c.var.user
+    if (!me) throw httpError('unauthorized', 'authentication required')
     const db = c.var.db
     const rows = await db.select().from(comments).where(eq(comments.id, id)).limit(1)
     const comment = rows[0]

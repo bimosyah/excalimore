@@ -1,9 +1,9 @@
 import type { ExcalidrawSceneData } from '@excalimore/types'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { buildEventsRouter } from '../../src/routes/events'
-import { buildScenesRouter } from '../../src/routes/scenes'
 import type { DbClient } from '../../src/db/client'
 import { comments, scenes, shareGrants, users } from '../../src/db/schema'
+import { buildEventsRouter } from '../../src/routes/events'
+import { buildScenesRouter } from '../../src/routes/scenes'
 import { buildAuthedApp, createTestUser, csrfHeaders, getTestDb } from '../helpers'
 
 let db: DbClient

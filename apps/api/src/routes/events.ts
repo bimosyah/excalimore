@@ -13,7 +13,8 @@ export function buildEventsRouter(): Hono<AppEnv> {
   app.get('/', async (c) => {
     const sceneId = c.req.query('scene_id')
     if (!sceneId) throw httpError('invalid_input', 'scene_id query param required')
-    const me = c.var.user!
+    const me = c.var.user
+    if (!me) throw httpError('unauthorized', 'authentication required')
     const role = await getSceneAccess(c.var.db, me.id, sceneId)
     if (!roleAllows(role, 'view')) throw httpError('not_found', 'scene not found')
 
@@ -22,11 +23,9 @@ export function buildEventsRouter(): Hono<AppEnv> {
       // (no waiting for the heartbeat tick to drain a queue).
       const unsub = eventBroker.subscribe(sceneId, (event) => {
         if (stream.aborted) return
-        stream
-          .writeSSE({ event: 'message', data: JSON.stringify(event) })
-          .catch(() => {
-            /* swallow — client probably disconnected */
-          })
+        stream.writeSSE({ event: 'message', data: JSON.stringify(event) }).catch(() => {
+          /* swallow — client probably disconnected */
+        })
       })
 
       try {
