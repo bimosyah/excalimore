@@ -9,11 +9,11 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './../routes/__root'
-import { Route as SignupRouteImport } from './../routes/signup'
-import { Route as LoginRouteImport } from './../routes/login'
 import { Route as AuthedRouteImport } from './../routes/_authed'
 import { Route as AuthedIndexRouteImport } from './../routes/_authed.index'
 import { Route as AuthedScenesIdRouteImport } from './../routes/_authed.scenes.$id'
+import { Route as LoginRouteImport } from './../routes/login'
+import { Route as SignupRouteImport } from './../routes/signup'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -65,13 +65,7 @@ export interface FileRouteTypes {
   fullPaths: '/' | '/login' | '/signup' | '/scenes/$id'
   fileRoutesByTo: FileRoutesByTo
   to: '/login' | '/signup' | '/' | '/scenes/$id'
-  id:
-    | '__root__'
-    | '/_authed'
-    | '/login'
-    | '/signup'
-    | '/_authed/'
-    | '/_authed/scenes/$id'
+  id: '__root__' | '/_authed' | '/login' | '/signup' | '/_authed/' | '/_authed/scenes/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -130,8 +124,7 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedScenesIdRoute: AuthedScenesIdRoute,
 }
 
-const AuthedRouteWithChildren =
-  AuthedRoute._addFileChildren(AuthedRouteChildren)
+const AuthedRouteWithChildren = AuthedRoute._addFileChildren(AuthedRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   AuthedRoute: AuthedRouteWithChildren,

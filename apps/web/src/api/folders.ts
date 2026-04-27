@@ -1,7 +1,7 @@
 import {
-  CreateFolderRequestSchema,
+  type CreateFolderRequestSchema,
   FolderSchema,
-  UpdateFolderRequestSchema,
+  type UpdateFolderRequestSchema,
 } from '@excalimore/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'

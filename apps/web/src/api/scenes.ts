@@ -1,8 +1,8 @@
 import {
-  CreateSceneRequestSchema,
-  ExcalidrawSceneDataSchema,
+  type CreateSceneRequestSchema,
+  type ExcalidrawSceneDataSchema,
   SceneSchema,
-  UpdateSceneRequestSchema,
+  type UpdateSceneRequestSchema,
 } from '@excalimore/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'

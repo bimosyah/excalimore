@@ -1,4 +1,4 @@
-import { LoginRequestSchema, SignupRequestSchema } from '@excalimore/types'
+import type { LoginRequestSchema, SignupRequestSchema } from '@excalimore/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { z } from 'zod'
 import { z as zod } from 'zod'

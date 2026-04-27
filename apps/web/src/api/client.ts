@@ -56,8 +56,7 @@ export async function apiFetch<Schema extends z.ZodTypeAny>(
 
   if (!res.ok) {
     const code = (parsedBody as { error?: string } | null)?.error ?? 'http_error'
-    const message =
-      (parsedBody as { message?: string } | null)?.message ?? `HTTP ${res.status}`
+    const message = (parsedBody as { message?: string } | null)?.message ?? `HTTP ${res.status}`
     throw new ApiError(code, message, res.status)
   }
 

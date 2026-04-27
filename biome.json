@@ -3,7 +3,13 @@
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
     "ignoreUnknown": true,
-    "ignore": ["**/drizzle/meta/**", "**/dist/**", "**/build/**", "**/.turbo/**"]
+    "ignore": [
+      "**/drizzle/meta/**",
+      "**/dist/**",
+      "**/build/**",
+      "**/.turbo/**",
+      "**/route-tree.ts"
+    ]
   },
   "formatter": {
     "enabled": true,
