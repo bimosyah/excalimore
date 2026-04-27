@@ -1,3 +1,4 @@
+import { Link, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useCreateFolder, useFolders } from '../../api/folders'
 
@@ -6,6 +7,10 @@ export function FolderSidebar() {
   const create = useCreateFolder()
   const [showNew, setShowNew] = useState(false)
   const [name, setName] = useState('')
+
+  // Read folder selection from /; on other routes useSearch returns {} so this defaults to undefined.
+  const search = useSearch({ strict: false }) as { folder?: string }
+  const activeFolder = search.folder
 
   if (folders.isLoading)
     return (
@@ -17,10 +22,23 @@ export function FolderSidebar() {
   return (
     <nav className="folder-list">
       <ul>
+        <li>
+          <Link to="/" search={{}} className={`folder-link${!activeFolder ? ' is-active' : ''}`}>
+            All scenes
+          </Link>
+        </li>
         {folders.data
           ?.filter((f) => f.parentId === null)
           .map((f) => (
-            <li key={f.id}>{f.name}</li>
+            <li key={f.id}>
+              <Link
+                to="/"
+                search={{ folder: f.id }}
+                className={`folder-link${activeFolder === f.id ? ' is-active' : ''}`}
+              >
+                {f.name}
+              </Link>
+            </li>
           ))}
       </ul>
       {!showNew ? (

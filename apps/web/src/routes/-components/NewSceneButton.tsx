@@ -2,7 +2,11 @@ import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useCreateScene } from '../../api/scenes'
 
-export function NewSceneButton() {
+interface Props {
+  folderId?: string
+}
+
+export function NewSceneButton({ folderId }: Props) {
   const create = useCreateScene()
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
@@ -14,7 +18,7 @@ export function NewSceneButton() {
       onClick={async () => {
         setBusy(true)
         try {
-          const res = await create.mutateAsync({ name: 'Untitled scene' })
+          const res = await create.mutateAsync({ name: 'Untitled scene', folderId })
           navigate({ to: '/scenes/$id', params: { id: res.scene.id } })
         } finally {
           setBusy(false)

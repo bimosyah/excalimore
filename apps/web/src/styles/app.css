@@ -70,12 +70,22 @@
   margin: 0 0 0.5rem 0;
 }
 .folder-list li {
-  padding: 0.4rem 0.5rem;
-  cursor: pointer;
-  border-radius: 4px;
+  margin: 0;
 }
-.folder-list li:hover {
+.folder-link {
+  display: block;
+  padding: 0.4rem 0.5rem;
+  border-radius: 4px;
+  text-decoration: none;
+  color: inherit;
+}
+.folder-link:hover {
   background: #efefef;
+}
+.folder-link.is-active {
+  background: #e7f5ff;
+  color: #1971c2;
+  font-weight: 600;
 }
 .folder-input {
   flex: 1;
