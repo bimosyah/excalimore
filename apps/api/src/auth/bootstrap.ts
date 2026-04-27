@@ -39,10 +39,7 @@ export async function consumeBootstrapToken(db: DbClient, token: string): Promis
   if (!row) return false
   if (row.expiresAt.getTime() <= now.getTime()) {
     // Roll back: expired tokens are not consumed.
-    await db
-      .update(bootstrapTokens)
-      .set({ usedAt: null })
-      .where(eq(bootstrapTokens.token, token))
+    await db.update(bootstrapTokens).set({ usedAt: null }).where(eq(bootstrapTokens.token, token))
     return false
   }
   return true

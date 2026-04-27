@@ -6,8 +6,11 @@ import { createTestUser, getTestDb } from '../helpers'
 
 let db: DbClient
 
-beforeAll(() => {
+beforeAll(async () => {
   db = getTestDb()
+  // Defensive: ensure no users / tokens linger from prior test files.
+  await db.delete(bootstrapTokens)
+  await db.delete(users)
 })
 
 afterEach(async () => {

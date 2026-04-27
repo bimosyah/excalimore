@@ -21,10 +21,7 @@ export interface SessionWithUser {
   user: UserRow
 }
 
-export async function getSession(
-  db: DbClient,
-  sessionId: string,
-): Promise<SessionWithUser | null> {
+export async function getSession(db: DbClient, sessionId: string): Promise<SessionWithUser | null> {
   const rows = await db
     .select({ session: sessions, user: users })
     .from(sessions)

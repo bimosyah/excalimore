@@ -1,11 +1,6 @@
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
-import {
-  buildAuthRouter,
-  detectFirstRunAndIssueToken,
-  injectContext,
-  loadSession,
-} from './auth'
+import { buildAuthRouter, detectFirstRunAndIssueToken, injectContext, loadSession } from './auth'
 import type { AppEnv } from './context'
 import { createDbClient } from './db/client'
 import { loadEnv } from './env'
