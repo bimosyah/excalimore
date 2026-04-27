@@ -49,26 +49,49 @@ export function FolderSidebar() {
         <form
           onSubmit={async (e) => {
             e.preventDefault()
-            if (!name) return
-            await create.mutateAsync({ name })
+            const trimmed = name.trim()
+            if (!trimmed) return
+            await create.mutateAsync({ name: trimmed })
             setName('')
             setShowNew(false)
           }}
-          style={{ display: 'flex', gap: '0.25rem' }}
+          className="folder-new-form"
         >
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setName('')
+                setShowNew(false)
+              }
+            }}
             // biome-ignore lint/a11y/noAutofocus: small inline new-folder input is the focused interaction
             autoFocus
+            placeholder="Folder name"
+            maxLength={80}
+            aria-label="New folder name"
             className="folder-input"
           />
-          <button type="submit" className="folder-submit" disabled={create.isPending}>
-            OK
-          </button>
-          <button type="button" onClick={() => setShowNew(false)} className="folder-submit">
-            ×
-          </button>
+          <div className="folder-new-actions">
+            <button
+              type="button"
+              onClick={() => {
+                setName('')
+                setShowNew(false)
+              }}
+              className="folder-submit"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="folder-submit folder-submit--primary"
+              disabled={create.isPending || !name.trim()}
+            >
+              {create.isPending ? 'Saving…' : 'Save'}
+            </button>
+          </div>
         </form>
       )}
     </nav>
