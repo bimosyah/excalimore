@@ -64,14 +64,17 @@ describe('end-to-end auth flow', () => {
     })
     expect(adminSignup.status).toBe(200)
     const adminCookie = getCookie(adminSignup, 'excalimore_session')
+    const adminCsrf = getCookie(adminSignup, 'excalimore_csrf')
     expect(adminCookie).toBeTruthy()
+    expect(adminCsrf).toBeTruthy()
 
-    // 3. Admin generates an invite token.
+    // 3. Admin generates an invite token (CSRF-protected).
     const inviteRes = await app.request('/api/auth/invite', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Cookie: `excalimore_session=${adminCookie}`,
+        Cookie: `excalimore_session=${adminCookie}; excalimore_csrf=${adminCsrf}`,
+        'X-CSRF-Token': adminCsrf!,
       },
       body: JSON.stringify({}),
     })
@@ -91,7 +94,9 @@ describe('end-to-end auth flow', () => {
     })
     expect(guestSignup.status).toBe(200)
     const guestCookie = getCookie(guestSignup, 'excalimore_session')
+    const guestCsrf = getCookie(guestSignup, 'excalimore_csrf')
     expect(guestCookie).toBeTruthy()
+    expect(guestCsrf).toBeTruthy()
 
     // 5. Guest hits /me — should get their identity.
     const meRes = await app.request('/api/auth/me', {
@@ -102,10 +107,13 @@ describe('end-to-end auth flow', () => {
     expect(meBody.user.email).toBe('guest@excalimore.test')
     expect(meBody.user.role).toBe('user')
 
-    // 6. Guest logs out — subsequent /me with same cookie returns 401.
+    // 6. Guest logs out (CSRF-protected) — subsequent /me with same cookie returns 401.
     const logoutRes = await app.request('/api/auth/logout', {
       method: 'POST',
-      headers: { Cookie: `excalimore_session=${guestCookie}` },
+      headers: {
+        Cookie: `excalimore_session=${guestCookie}; excalimore_csrf=${guestCsrf}`,
+        'X-CSRF-Token': guestCsrf!,
+      },
     })
     expect(logoutRes.status).toBe(200)
 

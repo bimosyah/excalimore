@@ -8,7 +8,7 @@ import { consumeBootstrapToken, detectFirstRunAndIssueToken } from './bootstrap'
 import { clearCsrfCookie, clearSessionCookie, setCsrfCookie, setSessionCookie } from './cookie'
 import { generateCsrfToken } from './csrf'
 import { consumeInviteToken, generateInviteToken } from './invite'
-import { rateLimit, requireAdmin, requireAuth } from './middleware'
+import { csrfProtect, rateLimit, requireAdmin, requireAuth } from './middleware'
 import { hashPassword, verifyPassword } from './password'
 import { createSession, invalidateSession } from './session'
 
@@ -115,7 +115,7 @@ export function buildAuthRouter(): Hono<AppEnv> {
     return c.json({ user: { id: user.id, email: user.email, name: user.name } })
   })
 
-  app.post('/logout', async (c) => {
+  app.post('/logout', csrfProtect(), async (c) => {
     if (c.var.sessionId) await invalidateSession(c.var.db, c.var.sessionId)
     clearSessionCookie(c)
     clearCsrfCookie(c)
@@ -128,7 +128,7 @@ export function buildAuthRouter(): Hono<AppEnv> {
     return c.json({ user: { id: u.id, email: u.email, name: u.name, role: u.role } })
   })
 
-  app.post('/invite', requireAuth(), requireAdmin(), async (c) => {
+  app.post('/invite', csrfProtect(), requireAuth(), requireAdmin(), async (c) => {
     const json = await c.req.json().catch(() => ({}))
     const body = CreateInviteRequestSchema.safeParse(json)
     if (!body.success) throw httpError('invalid_input', 'invalid invite body')
