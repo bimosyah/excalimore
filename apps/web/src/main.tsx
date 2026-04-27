@@ -1,22 +1,17 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './app'
 import './styles.css'
 
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 30_000, retry: false } },
+})
+
 createRoot(document.getElementById('root') as HTMLElement).render(
   <StrictMode>
-    <App />
+    <QueryClientProvider client={queryClient}>
+      <App />
+    </QueryClientProvider>
   </StrictMode>,
 )
-
-// Smoke check the proxy → API.
-fetch('/api/health')
-  .then((r) => r.json())
-  .then((j: { status: string }) => {
-    const el = document.getElementById('api-health')
-    if (el) el.textContent = j.status
-  })
-  .catch(() => {
-    const el = document.getElementById('api-health')
-    if (el) el.textContent = 'unreachable'
-  })

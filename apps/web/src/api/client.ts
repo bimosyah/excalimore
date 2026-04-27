@@ -31,7 +31,7 @@ export async function apiFetch<Schema extends z.ZodTypeAny>(
     headers['Content-Type'] = 'application/json'
     body = JSON.stringify(opts.body)
   }
-  if (method !== 'GET' && method !== 'HEAD') {
+  if (method !== 'GET') {
     const csrf = readCsrfToken()
     if (csrf) headers['X-CSRF-Token'] = csrf
   }
