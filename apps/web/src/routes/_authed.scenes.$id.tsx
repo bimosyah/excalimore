@@ -10,6 +10,37 @@ export const Route = createFileRoute('/_authed/scenes/$id')({
   component: SceneEditorPage,
 })
 
+/**
+ * Excalidraw's runtime `appState` contains values that don't survive a JSON
+ * round-trip — most notably `collaborators` (a Map) and selection / editing
+ * state. We strip them before persisting and again on hydration so the editor
+ * always sees a fresh runtime shape.
+ */
+const TRANSIENT_APP_STATE_KEYS = new Set([
+  'collaborators',
+  'selectedElementIds',
+  'selectedGroupIds',
+  'editingElement',
+  'editingGroupId',
+  'editingLinearElement',
+  'cursorButton',
+  'pendingImageElementId',
+  'draggingElement',
+  'resizingElement',
+  'multiElement',
+  'isResizing',
+  'isRotating',
+])
+
+function pruneAppState(appState: Record<string, unknown> | undefined): Record<string, unknown> {
+  if (!appState) return {}
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(appState)) {
+    if (!TRANSIENT_APP_STATE_KEYS.has(k)) out[k] = v
+  }
+  return out
+}
+
 function SceneEditorPage() {
   const { id } = Route.useParams()
   const sceneQ = useScene(id)
@@ -35,12 +66,23 @@ function SceneEditorPage() {
       debouncedSave({
         type: 'excalidraw',
         elements: elements as unknown[],
-        appState,
+        appState: pruneAppState(appState),
         files,
       })
     },
     [debouncedSave],
   )
+
+  // Build the initialData passed to <Excalidraw />. Pruning the persisted
+  // appState here means we never feed the editor a stale Map-shaped field.
+  const initialData = useMemo(() => {
+    if (!sceneQ.data) return null
+    const { data } = sceneQ.data.scene
+    return {
+      ...data,
+      appState: pruneAppState(data.appState),
+    }
+  }, [sceneQ.data])
 
   if (sceneQ.isLoading)
     return (
@@ -55,7 +97,7 @@ function SceneEditorPage() {
         <Link to="/">← Back to scenes</Link>
       </div>
     )
-  if (!sceneQ.data) return null
+  if (!sceneQ.data || !initialData) return null
 
   const { scene, role } = sceneQ.data
   // role is undefined when the user is the owner (server omits it for owners).
@@ -83,8 +125,9 @@ function SceneEditorPage() {
       <div style={{ flex: 1, position: 'relative' }}>
         <Excalidraw
           // Excalidraw owns the element/appState type. We persist the JSON
-          // verbatim (loose `unknown[]` in our schema) and hand it back here.
-          initialData={scene.data as never}
+          // verbatim (loose `unknown[]` in our schema) and hand it back here
+          // after pruning runtime-only state (Map fields don't JSON-round-trip).
+          initialData={initialData as never}
           onChange={canEdit ? (handleChange as never) : undefined}
           viewModeEnabled={!canEdit}
           theme="light"
