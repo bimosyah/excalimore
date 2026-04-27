@@ -1,0 +1,43 @@
+services:
+  excalimore-web:
+    image: ghcr.io/bimosyah/excalimore-web:${TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      excalimore-api:
+        condition: service_started
+
+  excalimore-api:
+    image: ghcr.io/bimosyah/excalimore-api:${TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8081}:3000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+      PUBLIC_URL: ${PUBLIC_URL}
+      RATE_LIMIT_LOGIN: ${RATE_LIMIT_LOGIN:-5}
+      SESSION_MAX_AGE: ${SESSION_MAX_AGE:-2592000}
+      BOOTSTRAP_TOKEN_TTL: ${BOOTSTRAP_TOKEN_TTL:-3600}
+    depends_on:
+      excalimore-db:
+        condition: service_healthy
+
+  excalimore-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: excalimore
+      POSTGRES_USER: excalimore
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - excalimore-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U excalimore -d excalimore"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  excalimore-pgdata:
