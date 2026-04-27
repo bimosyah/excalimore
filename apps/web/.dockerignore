@@ -1,0 +1,12 @@
+node_modules
+dist
+.turbo
+.env
+.env.*
+tests
+e2e
+playwright-report
+test-results
+playwright/.cache
+Dockerfile
+.dockerignore
