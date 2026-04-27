@@ -1,0 +1,159 @@
+name: cd
+
+# Continuous deploy: every push to main bumps the patch version, builds &
+# pushes both container images to ghcr.io, then SSHes the production host
+# and runs `docker compose pull && up -d`. Manual tag pushes are also
+# accepted (skip the auto-tag step). The workflow uses GITHUB_TOKEN for
+# ghcr.io and the SSH_PRIVATE_KEY repo secret for the deploy step.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write   # needed to push the auto-generated tag
+  packages: write   # needed to push images to ghcr.io
+
+concurrency:
+  # Serialize CD runs so a fast follow-up merge doesn't race a deploy.
+  group: cd-main
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.compute.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute next semver tag
+        id: compute
+        run: |
+          set -eu
+          git fetch --tags --force
+          LAST=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+          if [ -z "$LAST" ]; then
+            NEXT="v0.1.0"
+          else
+            VER=${LAST#v}
+            MAJ=${VER%%.*}
+            REST=${VER#*.}
+            MIN=${REST%%.*}
+            PATCH=${REST#*.}
+            NEXT="v${MAJ}.${MIN}.$((PATCH + 1))"
+          fi
+          echo "Last tag: ${LAST:-<none>} → next: $NEXT"
+          echo "version=$NEXT" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push tag
+        env:
+          NEXT: ${{ steps.compute.outputs.version }}
+        run: |
+          set -eu
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git tag "$NEXT" -m "Auto-release $NEXT"
+          git push origin "$NEXT"
+
+  build-api:
+    needs: tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/bimosyah/excalimore-api:${{ needs.tag.outputs.version }}
+            ghcr.io/bimosyah/excalimore-api:latest
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+  build-web:
+    needs: tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/bimosyah/excalimore-web:${{ needs.tag.outputs.version }}
+            ghcr.io/bimosyah/excalimore-web:latest
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+  deploy:
+    needs: [tag, build-api, build-web]
+    runs-on: ubuntu-latest
+    env:
+      SSH_HOST: ${{ vars.SSH_HOST }}
+      SSH_USER: ${{ vars.SSH_USER }}
+      VERSION: ${{ needs.tag.outputs.version }}
+    steps:
+      - name: Verify deploy secrets are set
+        run: |
+          set -eu
+          if [ -z "${SSH_HOST:-}" ] || [ -z "${SSH_USER:-}" ]; then
+            echo "::error::SSH_HOST or SSH_USER repo variable is missing — deploy skipped." >&2
+            echo "Set with: gh variable set SSH_HOST -b '<ip>' ; gh variable set SSH_USER -b 'root'"
+            exit 1
+          fi
+
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add server to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Pull new images and restart containers
+        run: |
+          set -eu
+          echo "==> Deploying $VERSION to $SSH_USER@$SSH_HOST"
+          ssh "$SSH_USER@$SSH_HOST" '
+            set -eu
+            cd /srv/excalimore
+            docker compose pull
+            docker compose up -d
+            docker image prune -f
+          '
+
+      - name: Smoke test the deployed API
+        run: |
+          set -eu
+          # Give the new api container a moment to pass its healthcheck.
+          sleep 5
+          for i in 1 2 3 4 5; do
+            if curl -fsS https://excalimore.bimosyahputro.com/api/health > /tmp/health.json; then
+              echo "Healthcheck OK on attempt $i:"
+              cat /tmp/health.json
+              exit 0
+            fi
+            echo "Attempt $i failed; retrying in 5s..."
+            sleep 5
+          done
+          echo "::error::API healthcheck never came back ok after deploy"
+          exit 1
