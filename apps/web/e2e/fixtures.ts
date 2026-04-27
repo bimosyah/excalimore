@@ -72,7 +72,7 @@ export async function createFolder(page: Page, name: string): Promise<void> {
   // The inline input is autofocused. Type the name and submit.
   const input = page.locator('.folder-input')
   await input.fill(name)
-  await page.getByRole('button', { name: 'OK' }).click()
+  await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByRole('link', { name })).toBeVisible()
 }
 

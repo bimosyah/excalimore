@@ -6,6 +6,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { useMe } from '../api/auth'
 import { useRenameScene, useSaveScene, useScene } from '../api/scenes'
 import { debounce } from '../lib/debounce'
+import { useCollapsed } from '../lib/use-collapsed'
 import { CommentOverlay, type ExcalidrawApiLite } from './-components/CommentOverlay'
 
 export const Route = createFileRoute('/_authed/scenes/$id')({
@@ -73,6 +74,10 @@ function SceneEditorPage() {
   const [tick, setTick] = useState(0)
   const [sidebarSlot, setSidebarSlot] = useState<HTMLDivElement | null>(null)
   const [renamingDraft, setRenamingDraft] = useState<string | null>(null)
+  const [commentsCollapsed, setCommentsCollapsed] = useCollapsed(
+    'excalimore.sidebar.comments',
+    false,
+  )
 
   const debouncedSave = useMemo(
     () =>
@@ -285,11 +290,32 @@ function SceneEditorPage() {
               tick={tick}
               currentUserId={meQ.data.id}
               isOwner={isOwner}
-              sidebarSlot={sidebarSlot}
+              sidebarSlot={commentsCollapsed ? null : sidebarSlot}
+              onCollapseSidebar={() => setCommentsCollapsed(true)}
             />
           )}
+          {commentsCollapsed && (
+            <button
+              type="button"
+              onClick={() => setCommentsCollapsed(false)}
+              className="app-floating-toggle app-floating-toggle--right"
+              aria-label="Show comments"
+              title="Show comments"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          )}
         </div>
-        <div ref={setSidebarSlot} style={{ display: 'flex' }} />
+        {!commentsCollapsed && <div ref={setSidebarSlot} style={{ display: 'flex' }} />}
       </div>
     </div>
   )

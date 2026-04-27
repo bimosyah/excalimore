@@ -10,6 +10,8 @@ export interface CommentSidebarProps {
   onSelect: (comment: Comment) => void
   onStartAdd: () => void
   isAdding: boolean
+  /** Optional collapse handler — when provided, a chevron-right button is shown. */
+  onCollapse?: () => void
 }
 
 /** Side panel listing every comment in the scene. */
@@ -18,15 +20,37 @@ export function CommentSidebar(props: CommentSidebarProps) {
     <aside className="comment-sidebar" aria-label="Comments">
       <header className="comment-sidebar-header">
         <strong>Comments</strong>
-        <button
-          type="button"
-          className="app-link-button"
-          onClick={props.onStartAdd}
-          aria-pressed={props.isAdding}
-          data-testid="comment-add-button"
-        >
-          {props.isAdding ? 'Cancel' : '+ Comment'}
-        </button>
+        <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+          <button
+            type="button"
+            className="app-link-button"
+            onClick={props.onStartAdd}
+            aria-pressed={props.isAdding}
+            data-testid="comment-add-button"
+          >
+            {props.isAdding ? 'Cancel' : '+ Comment'}
+          </button>
+          {props.onCollapse && (
+            <button
+              type="button"
+              onClick={props.onCollapse}
+              className="app-icon-button"
+              aria-label="Collapse comments"
+              title="Collapse comments"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M9 6l6 6-6 6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
       </header>
       <label
         style={{

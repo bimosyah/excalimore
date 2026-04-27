@@ -43,6 +43,8 @@ export interface CommentOverlayProps {
   isOwner: boolean
   /** DOM node where the sidebar is portaled (rendered as a flex sibling). */
   sidebarSlot: HTMLElement | null
+  /** Optional callback wired to the sidebar's collapse button. */
+  onCollapseSidebar?: () => void
 }
 
 type ComposerState =
@@ -327,6 +329,7 @@ export function CommentOverlay(props: CommentOverlayProps) {
       onSelect={onSelectFromSidebar}
       onStartAdd={startAdd}
       isAdding={composer.mode !== 'idle'}
+      onCollapse={props.onCollapseSidebar}
     />
   )
 
