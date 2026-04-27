@@ -1,0 +1,11 @@
+node_modules
+dist
+.turbo
+.env
+.env.*
+tests
+*.test.ts
+coverage
+docker-compose.dev.yml
+Dockerfile
+.dockerignore
