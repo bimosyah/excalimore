@@ -1,2 +1,3 @@
-// Re-exports each table schema. Populated by Tasks 11-13.
-export {}
+export * from './users'
+export * from './folders'
+export * from './scenes'
