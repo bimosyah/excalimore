@@ -67,6 +67,22 @@ export function useSaveScene(id: string) {
   })
 }
 
+export function useRenameScene(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (name: string) =>
+      apiFetch(`/api/scenes/${id}`, {
+        method: 'PATCH',
+        body: { name } satisfies z.infer<typeof UpdateSceneRequestSchema>,
+        schema: OkSchema,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['scene', id] })
+      qc.invalidateQueries({ queryKey: ['scenes'] })
+    },
+  })
+}
+
 export function useDeleteScene() {
   const qc = useQueryClient()
   return useMutation({

@@ -4,7 +4,7 @@ import type { ExcalidrawSceneData } from '@excalimore/types'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useMe } from '../api/auth'
-import { useSaveScene, useScene } from '../api/scenes'
+import { useRenameScene, useSaveScene, useScene } from '../api/scenes'
 import { debounce } from '../lib/debounce'
 import { CommentOverlay, type ExcalidrawApiLite } from './-components/CommentOverlay'
 
@@ -63,6 +63,7 @@ function SceneEditorPage() {
   const sceneQ = useScene(id)
   const meQ = useMe()
   const save = useSaveScene(id)
+  const rename = useRenameScene(id)
   const lastFingerprintRef = useRef<string | null>(null)
   const apiRef = useRef<ExcalidrawApiLite | null>(null)
   // `tick` re-renders the comment overlay when Excalidraw's onChange fires.
@@ -71,6 +72,7 @@ function SceneEditorPage() {
   // fingerprint guard above.
   const [tick, setTick] = useState(0)
   const [sidebarSlot, setSidebarSlot] = useState<HTMLDivElement | null>(null)
+  const [renamingDraft, setRenamingDraft] = useState<string | null>(null)
 
   const debouncedSave = useMemo(
     () =>
@@ -207,9 +209,65 @@ function SceneEditorPage() {
         <Link to="/" search={backSearch} style={{ textDecoration: 'none', color: '#1971c2' }}>
           ← Scenes
         </Link>
-        <strong>{scene.name}</strong>
+        {renamingDraft !== null ? (
+          <input
+            type="text"
+            value={renamingDraft}
+            onChange={(e) => setRenamingDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setRenamingDraft(null)
+              } else if (e.key === 'Enter') {
+                e.currentTarget.blur()
+              }
+            }}
+            onBlur={async () => {
+              const trimmed = renamingDraft.trim()
+              setRenamingDraft(null)
+              if (trimmed.length === 0 || trimmed === scene.name) return
+              try {
+                await rename.mutateAsync(trimmed)
+              } catch (err) {
+                console.error('rename failed:', err)
+              }
+            }}
+            // biome-ignore lint/a11y/noAutofocus: focus is the entire interaction
+            autoFocus
+            maxLength={200}
+            aria-label="Scene name"
+            style={{
+              fontWeight: 600,
+              fontSize: '1em',
+              padding: '0.15rem 0.4rem',
+              border: '1px solid #1971c2',
+              borderRadius: 4,
+              outline: 'none',
+              minWidth: 200,
+            }}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => canEdit && setRenamingDraft(scene.name)}
+            title={canEdit ? 'Click to rename' : undefined}
+            disabled={!canEdit}
+            style={{
+              fontWeight: 700,
+              fontSize: '1em',
+              background: 'none',
+              border: 'none',
+              padding: '0.15rem 0.4rem',
+              borderRadius: 4,
+              cursor: canEdit ? 'text' : 'default',
+              color: 'inherit',
+              fontFamily: 'inherit',
+            }}
+          >
+            {scene.name}
+          </button>
+        )}
         {!canEdit && <span className="muted">view-only</span>}
-        {save.isPending && <span className="muted">saving…</span>}
+        {(save.isPending || rename.isPending) && <span className="muted">saving…</span>}
       </header>
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
