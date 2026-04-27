@@ -135,7 +135,7 @@ jobs:
           echo "==> Deploying $VERSION to $SSH_USER@$SSH_HOST"
           ssh "$SSH_USER@$SSH_HOST" '
             set -eu
-            cd /srv/excalimore
+            cd /etc/excalimore
             docker compose pull
             docker compose up -d
             docker image prune -f
