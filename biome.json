@@ -1,7 +1,10 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
-  "files": { "ignoreUnknown": true },
+  "files": {
+    "ignoreUnknown": true,
+    "ignore": ["**/drizzle/meta/**", "**/dist/**", "**/build/**", "**/.turbo/**"]
+  },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
@@ -29,5 +32,17 @@
       "trailingCommas": "all",
       "arrowParentheses": "always"
     }
-  }
+  },
+  "overrides": [
+    {
+      "include": ["**/tests/**", "**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          }
+        }
+      }
+    }
+  ]
 }

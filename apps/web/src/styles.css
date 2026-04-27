@@ -8,7 +8,7 @@ body,
   margin: 0;
 }
 body {
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   background: #fafafa;
   color: #1a1a1a;

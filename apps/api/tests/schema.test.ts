@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { createDbClient, type DbClient } from '../src/db/client'
+import { type DbClient, createDbClient } from '../src/db/client'
 import { users } from '../src/db/schema'
 
 let db: DbClient
@@ -21,9 +21,7 @@ describe('users table', () => {
       .returning()
 
     expect(created).toBeDefined()
-    expect(created!.id).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-    )
+    expect(created!.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
     expect(created!.role).toBe('user')
 
     const fetched = await db.select().from(users).where(eq(users.id, created!.id))

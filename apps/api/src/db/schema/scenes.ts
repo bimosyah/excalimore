@@ -1,5 +1,5 @@
-import { jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import type { ExcalidrawSceneData } from '@excalimore/types'
+import { jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { folders } from './folders'
 import { users } from './users'
 
