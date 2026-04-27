@@ -23,11 +23,7 @@ export function FolderSidebar() {
     <nav className="folder-list">
       <ul>
         <li>
-          <Link
-            to="/"
-            search={{}}
-            className={`folder-link${!activeFolder ? ' is-active' : ''}`}
-          >
+          <Link to="/" search={{}} className={`folder-link${!activeFolder ? ' is-active' : ''}`}>
             All scenes
           </Link>
         </li>

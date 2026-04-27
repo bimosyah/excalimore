@@ -34,7 +34,9 @@ function HomePage() {
         </p>
       ) : (
         <div className="scene-grid">
-          {own.data?.map((s) => <SceneCard key={s.id} scene={s} />)}
+          {own.data?.map((s) => (
+            <SceneCard key={s.id} scene={s} />
+          ))}
         </div>
       )}
 
