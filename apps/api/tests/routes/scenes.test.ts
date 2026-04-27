@@ -133,3 +133,125 @@ describe('GET /scenes/:id', () => {
     expect(res.status).toBe(200)
   })
 })
+
+describe('PATCH /scenes/:id', () => {
+  it('owner can update name and data', async () => {
+    const { row: alice } = await createTestUser(db, { password: 'pw' })
+    const [scene] = await db
+      .insert(scenes)
+      .values({ ownerId: alice.id, name: 'old', data: EMPTY_SCENE_DATA })
+      .returning()
+
+    const { app } = buildAuthedApp(alice)
+    app.route('/scenes', buildScenesRouter())
+
+    const newData = {
+      type: 'excalidraw',
+      elements: [{ id: 'a', type: 'rectangle' }],
+      appState: {},
+      files: {},
+    }
+    const res = await app.request(`/scenes/${scene!.id}`, {
+      method: 'PATCH',
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ name: 'new', data: newData }),
+    })
+    expect(res.status).toBe(200)
+    const after = await db.select().from(scenes).where(eq(scenes.id, scene!.id))
+    expect(after[0]!.name).toBe('new')
+    expect((after[0]!.data as { elements: unknown[] }).elements).toHaveLength(1)
+  })
+
+  it('edit-grant holder can update data but not folder', async () => {
+    const { row: alice } = await createTestUser(db, { password: 'pw' })
+    const { row: bob } = await createTestUser(db, { password: 'pw' })
+    const [scene] = await db
+      .insert(scenes)
+      .values({ ownerId: alice.id, name: 's', data: EMPTY_SCENE_DATA })
+      .returning()
+    await db
+      .insert(shareGrants)
+      .values({ sceneId: scene!.id, userId: bob.id, permission: 'edit', grantedBy: alice.id })
+
+    const { app } = buildAuthedApp(bob)
+    app.route('/scenes', buildScenesRouter())
+
+    const dataOk = await app.request(`/scenes/${scene!.id}`, {
+      method: 'PATCH',
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ data: EMPTY_SCENE_DATA }),
+    })
+    expect(dataOk.status).toBe(200)
+
+    const folderForbidden = await app.request(`/scenes/${scene!.id}`, {
+      method: 'PATCH',
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ folderId: '00000000-0000-0000-0000-000000000000' }),
+    })
+    expect(folderForbidden.status).toBe(403)
+  })
+
+  it('view-grant holder cannot save scene data', async () => {
+    const { row: alice } = await createTestUser(db, { password: 'pw' })
+    const { row: bob } = await createTestUser(db, { password: 'pw' })
+    const [scene] = await db
+      .insert(scenes)
+      .values({ ownerId: alice.id, name: 's', data: EMPTY_SCENE_DATA })
+      .returning()
+    await db
+      .insert(shareGrants)
+      .values({ sceneId: scene!.id, userId: bob.id, permission: 'view', grantedBy: alice.id })
+
+    const { app } = buildAuthedApp(bob)
+    app.route('/scenes', buildScenesRouter())
+
+    const res = await app.request(`/scenes/${scene!.id}`, {
+      method: 'PATCH',
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ data: EMPTY_SCENE_DATA }),
+    })
+    expect(res.status).toBe(403)
+  })
+})
+
+describe('DELETE /scenes/:id', () => {
+  it('owner can delete', async () => {
+    const { row: alice } = await createTestUser(db, { password: 'pw' })
+    const [scene] = await db
+      .insert(scenes)
+      .values({ ownerId: alice.id, name: 's', data: EMPTY_SCENE_DATA })
+      .returning()
+
+    const { app } = buildAuthedApp(alice)
+    app.route('/scenes', buildScenesRouter())
+
+    const res = await app.request(`/scenes/${scene!.id}`, {
+      method: 'DELETE',
+      headers: csrfHeaders(),
+    })
+    expect(res.status).toBe(200)
+    const after = await db.select().from(scenes).where(eq(scenes.id, scene!.id))
+    expect(after).toHaveLength(0)
+  })
+
+  it('edit-grant holder cannot delete', async () => {
+    const { row: alice } = await createTestUser(db, { password: 'pw' })
+    const { row: bob } = await createTestUser(db, { password: 'pw' })
+    const [scene] = await db
+      .insert(scenes)
+      .values({ ownerId: alice.id, name: 's', data: EMPTY_SCENE_DATA })
+      .returning()
+    await db
+      .insert(shareGrants)
+      .values({ sceneId: scene!.id, userId: bob.id, permission: 'edit', grantedBy: alice.id })
+
+    const { app } = buildAuthedApp(bob)
+    app.route('/scenes', buildScenesRouter())
+
+    const res = await app.request(`/scenes/${scene!.id}`, {
+      method: 'DELETE',
+      headers: csrfHeaders(),
+    })
+    expect(res.status).toBe(403)
+  })
+})
