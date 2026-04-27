@@ -89,11 +89,12 @@ describe('POST /folders', () => {
     const { row: alice } = await createTestUser(db, { password: 'pw' })
     let parentId: string | null = null
     for (let i = 0; i < 5; i++) {
-      const [row] = await db
+      const currentParent: string | null = parentId
+      const result: Array<{ id: string }> = await db
         .insert(folders)
-        .values({ ownerId: alice.id, name: `level-${i}`, parentId })
+        .values({ ownerId: alice.id, name: `level-${i}`, parentId: currentParent })
         .returning()
-      parentId = row!.id
+      parentId = result[0]!.id
     }
 
     const { app } = buildAuthedApp(alice)

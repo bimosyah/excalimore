@@ -1,3 +1,4 @@
+import type { ExcalidrawSceneData } from '@excalimore/types'
 import { eq } from 'drizzle-orm'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { buildScenesRouter } from '../../src/routes/scenes'
@@ -20,7 +21,12 @@ afterEach(async () => {
   await db.delete(users)
 })
 
-const EMPTY_SCENE_DATA = { type: 'excalidraw', elements: [], appState: {}, files: {} }
+const EMPTY_SCENE_DATA: ExcalidrawSceneData = {
+  type: 'excalidraw',
+  elements: [],
+  appState: {},
+  files: {},
+}
 
 describe('POST /scenes/:sceneId/grants', () => {
   it('owner can grant view permission', async () => {

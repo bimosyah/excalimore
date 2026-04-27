@@ -1,3 +1,4 @@
+import type { ExcalidrawSceneData } from '@excalimore/types'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { buildEventsRouter } from '../../src/routes/events'
 import { buildScenesRouter } from '../../src/routes/scenes'
@@ -22,7 +23,12 @@ afterEach(async () => {
   await db.delete(users)
 })
 
-const EMPTY_SCENE_DATA = { type: 'excalidraw', elements: [], appState: {}, files: {} }
+const EMPTY_SCENE_DATA: ExcalidrawSceneData = {
+  type: 'excalidraw',
+  elements: [],
+  appState: {},
+  files: {},
+}
 
 describe('GET /events?scene_id=...', () => {
   it('streams a comment.created event when a comment is added', async () => {

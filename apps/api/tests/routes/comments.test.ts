@@ -1,3 +1,4 @@
+import type { ExcalidrawSceneData } from '@excalimore/types'
 import { eq } from 'drizzle-orm'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { buildCommentItemRouter } from '../../src/routes/comments'
@@ -23,7 +24,12 @@ afterEach(async () => {
   await db.delete(users)
 })
 
-const EMPTY_SCENE_DATA = { type: 'excalidraw', elements: [], appState: {}, files: {} }
+const EMPTY_SCENE_DATA: ExcalidrawSceneData = {
+  type: 'excalidraw',
+  elements: [],
+  appState: {},
+  files: {},
+}
 
 function mountFull(app: ReturnType<typeof buildAuthedApp>['app']) {
   app.route('/scenes', buildScenesRouter())

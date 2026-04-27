@@ -1,9 +1,18 @@
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
-import { buildAuthRouter, detectFirstRunAndIssueToken, injectContext, loadSession } from './auth'
+import {
+  buildAuthRouter,
+  detectFirstRunAndIssueToken,
+  injectContext,
+  loadSession,
+} from './auth'
 import type { AppEnv } from './context'
 import { createDbClient } from './db/client'
 import { loadEnv } from './env'
+import { buildCommentItemRouter } from './routes/comments'
+import { buildEventsRouter } from './routes/events'
+import { buildFoldersRouter } from './routes/folders'
+import { buildScenesRouter } from './routes/scenes'
 
 const env = loadEnv()
 const db = createDbClient(env.DATABASE_URL)
@@ -15,15 +24,15 @@ app.use('*', loadSession())
 
 app.get('/api/health', (c) => c.json({ status: 'ok', service: 'excalimore-api' }))
 
-// Auth router applies CSRF protection internally on routes that require an
-// existing session (logout, invite). Signup/login do not need CSRF — there is
-// no authenticated state yet to forge.
 app.route('/api/auth', buildAuthRouter())
+app.route('/api/folders', buildFoldersRouter())
+app.route('/api/scenes', buildScenesRouter())
+app.route('/api/comments', buildCommentItemRouter())
+app.route('/api/events', buildEventsRouter())
 
 app.notFound((c) => c.json({ error: 'Not Found' }, 404))
 
 app.onError((err, c) => {
-  // HTTPException already carries a Response; let Hono surface it.
   if (typeof (err as { getResponse?: unknown }).getResponse === 'function') {
     return (err as { getResponse: () => Response }).getResponse()
   }
