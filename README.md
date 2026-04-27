@@ -10,7 +10,7 @@ Excalimore wraps the open-source `@excalidraw/excalidraw` editor — the editor 
 
 ## Status
 
-Pre-alpha. Phase 1 (Foundation) in progress. Active design and plans live under [`docs/superpowers/`](./docs/superpowers/).
+Pre-alpha. Backend (Phases 1–3) and frontend MVP (Phase 4) shipped. Comment overlay (Phase 5) and production deployment (Phase 6) pending. Active design and plans live under [`docs/superpowers/`](./docs/superpowers/).
 
 ## Quick start (development)
 
@@ -24,7 +24,13 @@ pnpm --filter @excalimore/api db:migrate
 pnpm dev
 ```
 
-The API listens on `http://localhost:3000`; the web app on `http://localhost:5173`.
+Open `http://localhost:5173`. On first run the API logs a bootstrap URL like
+
+```
+http://localhost:5173/signup?bootstrap=<token>
+```
+
+Open it in your browser to create the admin user. Subsequent users join via invite links generated from `POST /api/auth/invite` (UI in a later phase — for now use `curl`, see [`docs/auth.md`](./docs/auth.md)).
 
 ## Layout
 
