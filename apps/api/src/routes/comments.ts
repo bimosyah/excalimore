@@ -5,6 +5,7 @@ import { getSceneAccess, roleAllows } from '../access'
 import { csrfProtect, requireAuth } from '../auth/middleware'
 import type { AppEnv } from '../context'
 import { comments, scenes } from '../db/schema'
+import { eventBroker } from '../events/broker'
 import { httpError } from '../lib/http-errors'
 
 function serialize(row: {
@@ -79,7 +80,9 @@ export function buildCommentsRouter(): Hono<AppEnv> {
       })
       .returning()
     if (!row) throw httpError('internal', 'failed to create comment')
-    return c.json({ comment: serialize(row) })
+    const payload = serialize(row)
+    eventBroker.publish(sceneId, { type: 'comment.created', payload })
+    return c.json({ comment: payload })
   })
 
   return app
@@ -117,6 +120,12 @@ export function buildCommentItemRouter(): Hono<AppEnv> {
     if (body.data.body !== undefined) update.body = body.data.body
     if (body.data.resolved !== undefined) update.resolved = body.data.resolved
     await db.update(comments).set(update).where(eq(comments.id, id))
+
+    const [updated] = await db.select().from(comments).where(eq(comments.id, id))
+    if (updated) {
+      const eventType = body.data.resolved === true ? 'comment.resolved' : 'comment.updated'
+      eventBroker.publish(updated.sceneId, { type: eventType, payload: serialize(updated) })
+    }
     return c.json({ ok: true })
   })
 

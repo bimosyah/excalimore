@@ -9,6 +9,7 @@ import { getSceneAccess, roleAllows } from '../access'
 import { csrfProtect, requireAuth } from '../auth/middleware'
 import type { AppEnv } from '../context'
 import { scenes, shareGrants } from '../db/schema'
+import { eventBroker } from '../events/broker'
 import { httpError } from '../lib/http-errors'
 import { buildCommentsRouter } from './comments'
 import { buildGrantsRouter } from './grants'
@@ -132,6 +133,13 @@ export function buildScenesRouter(): Hono<AppEnv> {
     if (Object.keys(update).length === 0) return c.json({ ok: true })
     update.updatedAt = new Date()
     await db.update(scenes).set(update).where(eq(scenes.id, id))
+
+    if (body.data.data !== undefined) {
+      eventBroker.publish(id, {
+        type: 'scene.updated',
+        payload: { sceneId: id, updatedAt: new Date().toISOString() },
+      })
+    }
     return c.json({ ok: true })
   })
 
