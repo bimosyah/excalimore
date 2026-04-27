@@ -1,0 +1,126 @@
+@import 'reset.css';
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  height: 100vh;
+}
+
+.app-sidebar {
+  border-right: 1px solid #e5e5e5;
+  background: #fafafa;
+  overflow-y: auto;
+}
+
+.app-sidebar-header {
+  padding: 1rem;
+  border-bottom: 1px solid #e5e5e5;
+}
+.app-sidebar-header h2 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.1em;
+}
+
+.app-main {
+  overflow-y: auto;
+}
+.app-page {
+  padding: 2rem;
+}
+.app-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.muted {
+  color: #6b6b6b;
+}
+
+.app-link-button {
+  background: none;
+  border: none;
+  color: #1971c2;
+  cursor: pointer;
+  font-size: 0.9em;
+  padding: 0.25rem 0;
+}
+
+.app-button-primary {
+  background: #1971c2;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95em;
+}
+.app-button-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.folder-list {
+  padding: 0.5rem 1rem;
+}
+.folder-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.5rem 0;
+}
+.folder-list li {
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.folder-list li:hover {
+  background: #efefef;
+}
+.folder-input {
+  flex: 1;
+  padding: 0.3rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+.folder-submit {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid #ccc;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.scene-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+.scene-card {
+  display: block;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  background: white;
+  text-decoration: none;
+  color: inherit;
+  overflow: hidden;
+  transition: border-color 120ms ease;
+}
+.scene-card:hover {
+  border-color: #1971c2;
+}
+.scene-card-thumb {
+  aspect-ratio: 16 / 10;
+  background: #f4f4f5;
+}
+.scene-card-body {
+  padding: 0.75rem;
+}
+.scene-card-body strong {
+  display: block;
+}
+.scene-card-body small {
+  display: block;
+  margin-top: 0.25rem;
+}
