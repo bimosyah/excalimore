@@ -48,8 +48,10 @@ export async function bootstrapAdmin(
   await page.getByLabel('Email').fill(args.email)
   await page.getByLabel(/Password/).fill(args.password)
   await page.getByRole('button', { name: /Create account/ }).click()
-  await page.waitForURL('**/')
-  await expect(page.getByRole('heading', { name: 'Your scenes' })).toBeVisible()
+  // Wait for the home grid to render — that's the deterministic landmark
+  // post-signup. The URL settles to "/" but search-param flux makes a glob
+  // match on it brittle; the heading is stable.
+  await expect(page.getByRole('heading', { name: 'Your scenes' })).toBeVisible({ timeout: 10_000 })
 }
 
 /** Log in via the form. Assumes the user already exists. */
@@ -58,7 +60,30 @@ export async function login(page: Page, args: { email: string; password: string 
   await page.getByLabel('Email').fill(args.email)
   await page.getByLabel('Password').fill(args.password)
   await page.getByRole('button', { name: /Sign in/ }).click()
-  await page.waitForURL('**/')
+  await expect(page.getByRole('heading', { name: 'Your scenes' })).toBeVisible({ timeout: 10_000 })
+}
+
+/**
+ * Create a folder via the sidebar form. Returns once the folder appears in
+ * the sidebar list so callers can immediately interact with it.
+ */
+export async function createFolder(page: Page, name: string): Promise<void> {
+  await page.getByRole('button', { name: '+ New folder' }).click()
+  // The inline input is autofocused. Type the name and submit.
+  const input = page.locator('.folder-input')
+  await input.fill(name)
+  await page.getByRole('button', { name: 'OK' }).click()
+  await expect(page.getByRole('link', { name })).toBeVisible()
+}
+
+/**
+ * Click "+ New scene" on the home page. Waits until the editor route renders
+ * (the toolbar header link "← Scenes" is the deterministic landmark).
+ */
+export async function createSceneFromHome(page: Page): Promise<void> {
+  await page.getByRole('button', { name: /\+ New scene/ }).click()
+  await page.waitForURL(/\/scenes\//)
+  await expect(page.getByRole('link', { name: '← Scenes' })).toBeVisible()
 }
 
 export const test = base

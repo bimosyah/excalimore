@@ -19,7 +19,7 @@ app.use('*', loadSession())
 
 app.get('/api/health', (c) => c.json({ status: 'ok', service: 'excalimore-api' }))
 
-app.route('/api/auth', buildAuthRouter())
+app.route('/api/auth', buildAuthRouter(env))
 app.route('/api/folders', buildFoldersRouter())
 app.route('/api/scenes', buildScenesRouter())
 app.route('/api/comments', buildCommentItemRouter())

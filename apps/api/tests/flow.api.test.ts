@@ -29,7 +29,7 @@ function buildFullApp() {
   const app = new Hono<AppEnv>()
   app.use('*', injectContext(db, env))
   app.use('*', loadSession())
-  app.route('/api/auth', buildAuthRouter())
+  app.route('/api/auth', buildAuthRouter(env))
   app.route('/api/folders', buildFoldersRouter())
   app.route('/api/scenes', buildScenesRouter())
   app.route('/api/comments', buildCommentItemRouter())

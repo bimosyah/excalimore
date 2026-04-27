@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import type { AppEnv } from '../context'
 import { shareGrants, users } from '../db/schema'
+import type { Env } from '../env'
 import { httpError } from '../lib/http-errors'
 import { consumeBootstrapToken, detectFirstRunAndIssueToken } from './bootstrap'
 import { clearCsrfCookie, clearSessionCookie, setCsrfCookie, setSessionCookie } from './cookie'
@@ -16,11 +17,13 @@ import { csrfProtect, rateLimit, requireAdmin, requireAuth } from './middleware'
 import { hashPassword, verifyPassword } from './password'
 import { createSession, invalidateSession } from './session'
 
-export function buildAuthRouter(): Hono<AppEnv> {
+export function buildAuthRouter(env: Env): Hono<AppEnv> {
   const app = new Hono<AppEnv>()
 
-  // Strict rate limit for credential endpoints.
-  const credentialLimit = rateLimit({ limit: 5, windowMs: 60_000 })
+  // Rate limit budget for credential endpoints. Set high in test/dev via
+  // RATE_LIMIT_LOGIN env so suites that exercise signup/login many times
+  // don't trip the limiter.
+  const credentialLimit = rateLimit({ limit: env.RATE_LIMIT_LOGIN, windowMs: 60_000 })
 
   app.post('/signup', credentialLimit, async (c) => {
     const json = await c.req.json().catch(() => null)
