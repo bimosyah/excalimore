@@ -10,6 +10,7 @@ import { csrfProtect, requireAuth } from '../auth/middleware'
 import type { AppEnv } from '../context'
 import { scenes, shareGrants } from '../db/schema'
 import { httpError } from '../lib/http-errors'
+import { buildCommentsRouter } from './comments'
 import { buildGrantsRouter } from './grants'
 
 function serialize(
@@ -147,6 +148,7 @@ export function buildScenesRouter(): Hono<AppEnv> {
   })
 
   app.route('/:sceneId/grants', buildGrantsRouter())
+  app.route('/:sceneId/comments', buildCommentsRouter())
 
   return app
 }
