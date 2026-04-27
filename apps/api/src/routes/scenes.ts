@@ -10,6 +10,7 @@ import { csrfProtect, requireAuth } from '../auth/middleware'
 import type { AppEnv } from '../context'
 import { scenes, shareGrants } from '../db/schema'
 import { httpError } from '../lib/http-errors'
+import { buildGrantsRouter } from './grants'
 
 function serialize(
   row: {
@@ -144,6 +145,8 @@ export function buildScenesRouter(): Hono<AppEnv> {
     await db.delete(scenes).where(eq(scenes.id, id))
     return c.json({ ok: true })
   })
+
+  app.route('/:sceneId/grants', buildGrantsRouter())
 
   return app
 }
