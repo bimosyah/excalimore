@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LoginRequestSchema, SignupRequestSchema, UserSchema } from '../src/index.ts'
+import { LoginRequestSchema, SignupRequestSchema, UserSchema } from '../src'
 
 describe('UserSchema', () => {
   it('accepts a valid user', () => {
