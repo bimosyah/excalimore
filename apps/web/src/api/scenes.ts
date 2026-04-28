@@ -67,6 +67,29 @@ export function useSaveScene(id: string) {
   })
 }
 
+/**
+ * Persist a freshly-rendered thumbnail for the scene. Kept separate from
+ * `useSaveScene` so the data save and the thumbnail save can be debounced
+ * independently — the data save is the user's primary edit path; the
+ * thumbnail is a derivative and runs on a slower cadence so we don't burn
+ * CPU on the export pipeline during a flurry of edits.
+ *
+ * The home grid (`['scenes']` query key) is invalidated on success so cards
+ * refresh with the new image without requiring a reload.
+ */
+export function useSaveSceneThumbnail(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (thumbnailUrl: string) =>
+      apiFetch(`/api/scenes/${id}`, {
+        method: 'PATCH',
+        body: { thumbnailUrl } satisfies z.infer<typeof UpdateSceneRequestSchema>,
+        schema: OkSchema,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['scenes'] }),
+  })
+}
+
 export function useRenameScene(id: string) {
   const qc = useQueryClient()
   return useMutation({
