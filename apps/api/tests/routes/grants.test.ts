@@ -95,9 +95,13 @@ describe('POST /scenes/:sceneId/grants', () => {
 })
 
 describe('GET /scenes/:sceneId/grants', () => {
-  it('owner sees all grants for the scene', async () => {
+  it('owner sees all grants for the scene with user identity', async () => {
     const { row: alice } = await createTestUser(db, { password: 'pw' })
-    const { row: bob } = await createTestUser(db, { password: 'pw' })
+    const { row: bob } = await createTestUser(db, {
+      password: 'pw',
+      email: 'bob@example.test',
+      name: 'Bob Dylan',
+    })
     const [scene] = await db
       .insert(scenes)
       .values({ ownerId: alice.id, name: 's', data: EMPTY_SCENE_DATA })
@@ -110,9 +114,18 @@ describe('GET /scenes/:sceneId/grants', () => {
     app.route('/scenes', buildScenesRouter())
     const res = await app.request(`/scenes/${scene!.id}/grants`)
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { grants: Array<{ userId: string; permission: string }> }
+    const body = (await res.json()) as {
+      grants: Array<{
+        userId: string
+        permission: string
+        userEmail: string | null
+        userName: string | null
+      }>
+    }
     expect(body.grants).toHaveLength(1)
     expect(body.grants[0]!.userId).toBe(bob.id)
+    expect(body.grants[0]!.userEmail).toBe('bob@example.test')
+    expect(body.grants[0]!.userName).toBe('Bob Dylan')
   })
 })
 

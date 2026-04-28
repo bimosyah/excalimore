@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { csrfProtect, requireAuth } from '../auth/middleware'
 import type { AppEnv } from '../context'
-import { scenes, shareGrants } from '../db/schema'
+import { scenes, shareGrants, users } from '../db/schema'
 import { httpError } from '../lib/http-errors'
 
 function serialize(row: {
@@ -21,6 +21,23 @@ function serialize(row: {
     permission: row.permission,
     grantedBy: row.grantedBy,
     createdAt: row.createdAt.toISOString(),
+  }
+}
+
+function serializeWithUser(row: {
+  id: string
+  sceneId: string
+  userId: string
+  permission: string
+  grantedBy: string
+  createdAt: Date
+  userEmail: string | null
+  userName: string | null
+}) {
+  return {
+    ...serialize(row),
+    userEmail: row.userEmail,
+    userName: row.userName,
   }
 }
 
@@ -49,8 +66,24 @@ export function buildGrantsRouter(): Hono<AppEnv> {
 
   app.get('/', async (c) => {
     const sceneId = c.req.param('sceneId') ?? ''
-    const rows = await c.var.db.select().from(shareGrants).where(eq(shareGrants.sceneId, sceneId))
-    return c.json({ grants: rows.map(serialize) })
+    // Left join users so the UI can render a meaningful identity (email + name)
+    // instead of opaque user ids. The join is "left" so a grant whose user has
+    // since been deleted still surfaces — the UI shows null fields.
+    const rows = await c.var.db
+      .select({
+        id: shareGrants.id,
+        sceneId: shareGrants.sceneId,
+        userId: shareGrants.userId,
+        permission: shareGrants.permission,
+        grantedBy: shareGrants.grantedBy,
+        createdAt: shareGrants.createdAt,
+        userEmail: users.email,
+        userName: users.name,
+      })
+      .from(shareGrants)
+      .leftJoin(users, eq(users.id, shareGrants.userId))
+      .where(eq(shareGrants.sceneId, sceneId))
+    return c.json({ grants: rows.map(serializeWithUser) })
   })
 
   app.post('/', csrfProtect(), async (c) => {
