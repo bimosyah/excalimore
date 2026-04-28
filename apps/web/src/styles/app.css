@@ -528,6 +528,16 @@
   margin-top: 0.75rem;
 }
 
+/* Scene card thumbnail image — fills the 16:10 placeholder, cropping anything
+   that doesn't fit so cards stay uniform. The placeholder background still
+   shows during image load (lazy) and on broken/missing thumbnails. */
+.scene-card-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 /* Folder row + per-row action menu (rename / delete) */
 .folder-row {
   position: relative;

@@ -1,10 +1,10 @@
-import { Excalidraw } from '@excalidraw/excalidraw'
+import { Excalidraw, exportToBlob } from '@excalidraw/excalidraw'
 import '@excalidraw/excalidraw/index.css'
 import type { ExcalidrawSceneData } from '@excalimore/types'
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useMe } from '../api/auth'
-import { useRenameScene, useSaveScene, useScene } from '../api/scenes'
+import { useRenameScene, useSaveScene, useSaveSceneThumbnail, useScene } from '../api/scenes'
 import { debounce } from '../lib/debounce'
 import { useCollapsed } from '../lib/use-collapsed'
 import { CommentOverlay, type ExcalidrawApiLite } from './-components/CommentOverlay'
@@ -60,13 +60,88 @@ function fingerprintElements(elements: readonly unknown[]): string {
   return acc
 }
 
+/**
+ * Hard ceiling for a thumbnail data URL we'll persist. `text` columns in
+ * Postgres are unbounded, but a runaway 5MB base64 in every list response
+ * would tank the home grid. The renderer downscales once if it's over
+ * `THUMBNAIL_SIZE_TARGET`; if it's still over `THUMBNAIL_SIZE_HARD_CEILING`
+ * after the second pass we skip the save (the placeholder stays).
+ */
+const THUMBNAIL_SIZE_TARGET = 50 * 1024
+const THUMBNAIL_SIZE_HARD_CEILING = 100 * 1024
+const THUMBNAIL_FIRST_PASS_PX = 320
+const THUMBNAIL_FALLBACK_PX = 240
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') resolve(reader.result)
+      else reject(new Error('FileReader produced non-string result'))
+    }
+    reader.onerror = () => reject(reader.error ?? new Error('FileReader failed'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+/**
+ * Render a small PNG thumbnail of the current scene as a data URL. Returns
+ * `null` when the scene is empty or the result still exceeds the hard
+ * ceiling after a downscale pass — callers use that as a signal to skip the
+ * save and leave the placeholder in place.
+ */
+async function renderThumbnailDataUrl(
+  elements: readonly unknown[],
+  appState: Record<string, unknown>,
+  files: Record<string, unknown>,
+): Promise<string | null> {
+  if (elements.length === 0) return null
+  // First pass at the target resolution. If the PNG is small enough we
+  // ship it as-is; otherwise we retry once at a smaller size before
+  // giving up.
+  for (const maxWidthOrHeight of [THUMBNAIL_FIRST_PASS_PX, THUMBNAIL_FALLBACK_PX]) {
+    const blob = await exportToBlob({
+      // Excalidraw's export types want non-readonly arrays / its own types,
+      // but at runtime they're just iterated — `as never` keeps TS quiet
+      // without dragging in the full element type.
+      elements: elements as never,
+      appState: { ...appState, exportBackground: true, exportWithDarkMode: false } as never,
+      files: files as never,
+      mimeType: 'image/png',
+      maxWidthOrHeight,
+    })
+    const dataUrl = await blobToDataUrl(blob)
+    if (dataUrl.length <= THUMBNAIL_SIZE_TARGET) return dataUrl
+    if (
+      maxWidthOrHeight === THUMBNAIL_FALLBACK_PX &&
+      dataUrl.length <= THUMBNAIL_SIZE_HARD_CEILING
+    ) {
+      return dataUrl
+    }
+    if (maxWidthOrHeight === THUMBNAIL_FALLBACK_PX) {
+      // Even the smaller render is still too big — give up gracefully.
+      console.warn(
+        `[thumbnail] skipping save: data URL ${dataUrl.length}B exceeds ${THUMBNAIL_SIZE_HARD_CEILING}B`,
+      )
+      return null
+    }
+  }
+  return null
+}
+
 function SceneEditorPage() {
   const { id } = Route.useParams()
   const sceneQ = useScene(id)
   const meQ = useMe()
   const save = useSaveScene(id)
+  const saveThumb = useSaveSceneThumbnail(id)
   const rename = useRenameScene(id)
   const lastFingerprintRef = useRef<string | null>(null)
+  // Tracks the fingerprint of the elements last *thumbnailed*, separately
+  // from the data-save fingerprint above. The thumbnail debounce is slower
+  // (5s vs 2s) and can fail/skip independently, so we don't want to share
+  // state with the data save.
+  const lastThumbFingerprintRef = useRef<string | null>(null)
   const apiRef = useRef<ExcalidrawApiLite | null>(null)
   // `tick` re-renders the comment overlay when Excalidraw's onChange fires.
   // The viewport (scrollX/scrollY/zoom) changes drive a render so pins follow
@@ -90,6 +165,37 @@ function SceneEditorPage() {
         })
       }, 2000),
     [save],
+  )
+
+  // Thumbnail render + save. Slower cadence than the data save (5s vs 2s)
+  // because exportToBlob walks every element through a canvas — fine on a
+  // small board, expensive during a flurry of edits. The fingerprint guard
+  // also dedupes "same elements as last time" cases, so a single rapid
+  // sequence of edits collapses to one render at the trailing edge.
+  const debouncedThumbnail = useMemo(
+    () =>
+      debounce(
+        async (
+          elements: readonly unknown[],
+          appState: Record<string, unknown>,
+          files: Record<string, unknown>,
+          fingerprint: string,
+        ) => {
+          if (lastThumbFingerprintRef.current === fingerprint) return
+          try {
+            const dataUrl = await renderThumbnailDataUrl(elements, appState, files)
+            if (!dataUrl) return
+            await saveThumb.mutateAsync(dataUrl)
+            lastThumbFingerprintRef.current = fingerprint
+          } catch (err) {
+            // Don't block the editor on thumbnail failures — the placeholder
+            // is a perfectly fine fallback.
+            console.error('thumbnail save failed:', err)
+          }
+        },
+        5000,
+      ),
+    [saveThumb],
   )
 
   const lastViewportRef = useRef<{ scrollX: number; scrollY: number; zoom: number } | null>(null)
@@ -138,8 +244,13 @@ function SceneEditorPage() {
         appState: pruneAppState(appState),
         files,
       })
+      // Schedule a thumbnail re-render on a slower cadence. We pass the same
+      // fingerprint so the trailing-edge handler can short-circuit if it's
+      // already rendered exactly this state (e.g. the user hit undo back to
+      // the previously thumbnailed snapshot).
+      debouncedThumbnail(elements, appState, files, fingerprint)
     },
-    [debouncedSave],
+    [debouncedSave, debouncedThumbnail],
   )
 
   // View-only role: bump tick when viewport changes only.
