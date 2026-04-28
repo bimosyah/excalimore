@@ -1,4 +1,11 @@
-import { bootstrapAdmin, createFolder, createSceneFromHome, expect, test } from './fixtures'
+import {
+  bootstrapAdmin,
+  createFolder,
+  createSceneFromHome,
+  expect,
+  openFolderMenu,
+  test,
+} from './fixtures'
 
 test.describe('folders', () => {
   // Acceptance: "as user, bisa buat folder sesuai dengan yang di input"
@@ -45,5 +52,84 @@ test.describe('folders', () => {
     await page.getByRole('link', { name: 'All scenes' }).click()
     await expect(page).toHaveURL(/\/$/)
     await expect(page.getByText('Untitled scene')).toBeVisible()
+  })
+
+  // Acceptance: rename via the per-row menu, persists across reload.
+  test('user can rename a folder from the sidebar menu', async ({ page }) => {
+    await bootstrapAdmin(page, {
+      email: 'folder-rename@e2e.test',
+      password: 'folder-password',
+      name: 'Folder Renamer',
+    })
+
+    await createFolder(page, 'Old Name')
+
+    await openFolderMenu(page, 'Old Name')
+    await page.getByRole('menuitem', { name: 'Rename' }).click()
+
+    // The row swaps to an inline input. Type the new name and commit on Enter.
+    const input = page.getByRole('textbox', { name: 'Folder name' })
+    await expect(input).toBeVisible()
+    await input.fill('New Name')
+    await input.press('Enter')
+
+    await expect(page.getByRole('link', { name: 'New Name' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Old Name' })).toHaveCount(0)
+
+    // Persists across reload.
+    await page.reload()
+    await expect(page.getByRole('link', { name: 'New Name' })).toBeVisible()
+  })
+
+  // Acceptance: delete via the per-row menu, the row disappears.
+  test('user can delete a folder from the sidebar menu', async ({ page }) => {
+    await bootstrapAdmin(page, {
+      email: 'folder-delete@e2e.test',
+      password: 'folder-password',
+      name: 'Folder Deleter',
+    })
+
+    await createFolder(page, 'Throwaway')
+
+    await openFolderMenu(page, 'Throwaway')
+    await page.getByRole('menuitem', { name: 'Delete' }).click()
+
+    // Inline confirm dialog — click the destructive Delete button.
+    const dialog = page.getByRole('dialog', { name: 'Confirm delete' })
+    await expect(dialog).toBeVisible()
+    await dialog.getByRole('button', { name: 'Delete' }).click()
+
+    await expect(page.getByRole('link', { name: 'Throwaway' })).toHaveCount(0)
+  })
+
+  // Acceptance: deleting the currently filtered folder drops `?folder=` from URL.
+  test('deleting the currently filtered folder redirects to root grid', async ({ page }) => {
+    await bootstrapAdmin(page, {
+      email: 'folder-delete-active@e2e.test',
+      password: 'folder-password',
+      name: 'Folder Filter Deleter',
+    })
+
+    await createFolder(page, 'Filtered')
+
+    // Filter the home grid by the new folder.
+    await page.getByRole('link', { name: 'Filtered' }).click()
+    await expect(page).toHaveURL(/\?folder=/)
+    await expect(page.getByRole('heading', { name: /Scenes in this folder/ })).toBeVisible()
+
+    // Open the menu and delete the same folder we're currently filtered by.
+    await openFolderMenu(page, 'Filtered')
+    await page.getByRole('menuitem', { name: 'Delete' }).click()
+    await page
+      .getByRole('dialog', { name: 'Confirm delete' })
+      .getByRole('button', {
+        name: 'Delete',
+      })
+      .click()
+
+    // The URL drops the folder filter and the heading flips back to "Your scenes".
+    await expect(page).toHaveURL(/\/$/)
+    await expect(page.getByRole('heading', { name: 'Your scenes' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Filtered' })).toHaveCount(0)
   })
 })
