@@ -6,14 +6,14 @@ import {
 import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import type { AppEnv } from '../context'
-import { shareGrants, users } from '../db/schema'
+import { scenes, shareGrants, users } from '../db/schema'
 import type { Env } from '../env'
 import { httpError } from '../lib/http-errors'
 import { consumeBootstrapToken, detectFirstRunAndIssueToken } from './bootstrap'
 import { clearCsrfCookie, clearSessionCookie, setCsrfCookie, setSessionCookie } from './cookie'
 import { generateCsrfToken } from './csrf'
 import { consumeInviteToken, generateInviteToken } from './invite'
-import { csrfProtect, rateLimit, requireAdmin, requireAuth } from './middleware'
+import { csrfProtect, rateLimit, requireAuth } from './middleware'
 import { hashPassword, verifyPassword } from './password'
 import { createSession, invalidateSession } from './session'
 
@@ -135,13 +135,32 @@ export function buildAuthRouter(env: Env): Hono<AppEnv> {
     return c.json({ user: { id: u.id, email: u.email, name: u.name, role: u.role } })
   })
 
-  app.post('/invite', csrfProtect(), requireAuth(), requireAdmin(), async (c) => {
+  app.post('/invite', csrfProtect(), requireAuth(), async (c) => {
     const json = await c.req.json().catch(() => ({}))
     const body = CreateInviteRequestSchema.safeParse(json)
     if (!body.success) throw httpError('invalid_input', 'invalid invite body')
     const env = c.var.env
     const created = c.var.user
     if (!created) throw httpError('unauthorized', 'authentication required')
+
+    // Authorization: admins may always create invites. Non-admin users may
+    // create invites scoped to a specific scene they own — this powers the
+    // per-scene Share modal so collaborators don't need admin powers to
+    // share their own work.
+    if (created.role !== 'admin') {
+      if (!body.data.sceneId) {
+        throw httpError('forbidden', 'admin role required to create unscoped invites')
+      }
+      const sceneRow = await c.var.db
+        .select({ ownerId: scenes.ownerId })
+        .from(scenes)
+        .where(eq(scenes.id, body.data.sceneId))
+        .limit(1)
+      const scene = sceneRow[0]
+      if (!scene || scene.ownerId !== created.id) {
+        throw httpError('forbidden', 'only the scene owner can invite to this scene')
+      }
+    }
 
     const ttl = body.data.expiresAt
       ? Math.max(60, Math.floor((Date.parse(body.data.expiresAt) - Date.now()) / 1000))

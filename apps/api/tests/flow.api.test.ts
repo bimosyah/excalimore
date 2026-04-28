@@ -161,4 +161,111 @@ describe('full API flow', () => {
     })
     expect(adminDelete.status).toBe(200)
   })
+
+  // The Share modal (Phase 6) lets non-admin scene owners generate invite
+  // links scoped to their own scenes. This test pins that behavior.
+  it('non-admin scene owner can invite to a scene they own but not to others', async () => {
+    // 1. Bootstrap admin so the server allows invite generation at all.
+    const bootstrapToken = await detectFirstRunAndIssueToken(db, env.BOOTSTRAP_TOKEN_TTL)
+    const adminSignup = await app.request('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: bootstrapToken,
+        email: 'owner-admin@x.test',
+        password: 'admin-password',
+        name: 'Admin',
+      }),
+    })
+    expect(adminSignup.status).toBe(200)
+    const aSess = getCookie(adminSignup, 'excalimore_session')!
+    const aCsrf = getCookie(adminSignup, 'excalimore_csrf')!
+
+    // 2. Admin invites a non-admin user (no scene grant — generic invite).
+    const inviteRes = await app.request('/api/auth/invite', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `excalimore_session=${aSess}; excalimore_csrf=${aCsrf}`,
+        'X-CSRF-Token': aCsrf,
+      },
+      body: JSON.stringify({}),
+    })
+    expect(inviteRes.status).toBe(200)
+    const { token: userInvite } = (await inviteRes.json()) as { token: string }
+
+    // 3. Sign up the regular user via the invite.
+    const userSignup = await app.request('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: userInvite,
+        email: 'creator@x.test',
+        password: 'creator-password',
+        name: 'Creator',
+      }),
+    })
+    expect(userSignup.status).toBe(200)
+    const uSess = getCookie(userSignup, 'excalimore_session')!
+    const uCsrf = getCookie(userSignup, 'excalimore_csrf')!
+
+    // 4. Regular user creates a scene of their own.
+    const sceneRes = await app.request('/api/scenes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `excalimore_session=${uSess}; excalimore_csrf=${uCsrf}`,
+        'X-CSRF-Token': uCsrf,
+      },
+      body: JSON.stringify({ name: 'creator-scene' }),
+    })
+    expect(sceneRes.status).toBe(200)
+    const { scene: ownScene } = (await sceneRes.json()) as { scene: { id: string } }
+
+    // 5. The non-admin scene owner CAN invite collaborators to their scene.
+    const ownerInvite = await app.request('/api/auth/invite', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `excalimore_session=${uSess}; excalimore_csrf=${uCsrf}`,
+        'X-CSRF-Token': uCsrf,
+      },
+      body: JSON.stringify({ sceneId: ownScene.id, permission: 'view' }),
+    })
+    expect(ownerInvite.status).toBe(200)
+
+    // 6. But they CANNOT create a generic (no-scene) invite.
+    const unscopedInvite = await app.request('/api/auth/invite', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `excalimore_session=${uSess}; excalimore_csrf=${uCsrf}`,
+        'X-CSRF-Token': uCsrf,
+      },
+      body: JSON.stringify({}),
+    })
+    expect(unscopedInvite.status).toBe(403)
+
+    // 7. And they cannot invite to a scene they don't own (the admin's scene).
+    const adminScene = await app.request('/api/scenes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `excalimore_session=${aSess}; excalimore_csrf=${aCsrf}`,
+        'X-CSRF-Token': aCsrf,
+      },
+      body: JSON.stringify({ name: 'admin-scene' }),
+    })
+    const { scene: adminOwnedScene } = (await adminScene.json()) as { scene: { id: string } }
+    const otherSceneInvite = await app.request('/api/auth/invite', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `excalimore_session=${uSess}; excalimore_csrf=${uCsrf}`,
+        'X-CSRF-Token': uCsrf,
+      },
+      body: JSON.stringify({ sceneId: adminOwnedScene.id, permission: 'view' }),
+    })
+    expect(otherSceneInvite.status).toBe(403)
+  })
 })
