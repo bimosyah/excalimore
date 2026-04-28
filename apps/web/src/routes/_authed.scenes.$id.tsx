@@ -8,6 +8,7 @@ import { useRenameScene, useSaveScene, useScene } from '../api/scenes'
 import { debounce } from '../lib/debounce'
 import { useCollapsed } from '../lib/use-collapsed'
 import { CommentOverlay, type ExcalidrawApiLite } from './-components/CommentOverlay'
+import { ShareModal } from './-components/ShareModal'
 
 export const Route = createFileRoute('/_authed/scenes/$id')({
   component: SceneEditorPage,
@@ -74,6 +75,7 @@ function SceneEditorPage() {
   const [tick, setTick] = useState(0)
   const [sidebarSlot, setSidebarSlot] = useState<HTMLDivElement | null>(null)
   const [renamingDraft, setRenamingDraft] = useState<string | null>(null)
+  const [shareOpen, setShareOpen] = useState(false)
   const [commentsCollapsed, setCommentsCollapsed] = useCollapsed(
     'excalimore.sidebar.comments',
     false,
@@ -271,9 +273,21 @@ function SceneEditorPage() {
             {scene.name}
           </button>
         )}
+        {isOwner && (
+          <button
+            type="button"
+            onClick={() => setShareOpen(true)}
+            data-testid="share-button"
+            className="app-button-primary"
+            style={{ padding: '0.35rem 0.8rem', fontSize: '0.9em' }}
+          >
+            Share
+          </button>
+        )}
         {!canEdit && <span className="muted">view-only</span>}
         {(save.isPending || rename.isPending) && <span className="muted">saving…</span>}
       </header>
+      {shareOpen && <ShareModal sceneId={id} onClose={() => setShareOpen(false)} />}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
           <Excalidraw
