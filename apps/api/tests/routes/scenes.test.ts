@@ -197,6 +197,80 @@ describe('PATCH /scenes/:id', () => {
     expect(folderForbidden.status).toBe(403)
   })
 
+  it('owner can save thumbnailUrl and GET reflects it', async () => {
+    const { row: alice } = await createTestUser(db, { password: 'pw' })
+    const [scene] = await db
+      .insert(scenes)
+      .values({ ownerId: alice.id, name: 's', data: EMPTY_SCENE_DATA })
+      .returning()
+
+    const { app } = buildAuthedApp(alice)
+    app.route('/scenes', buildScenesRouter())
+
+    // 1×1 transparent PNG — the smallest legal data URL we can use.
+    const thumb =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+    const patch = await app.request(`/scenes/${scene!.id}`, {
+      method: 'PATCH',
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ thumbnailUrl: thumb }),
+    })
+    expect(patch.status).toBe(200)
+
+    const after = await db.select().from(scenes).where(eq(scenes.id, scene!.id))
+    expect(after[0]!.thumbnailUrl).toBe(thumb)
+
+    const get = await app.request(`/scenes/${scene!.id}`)
+    expect(get.status).toBe(200)
+    const body = (await get.json()) as { scene: { thumbnailUrl: string | null } }
+    expect(body.scene.thumbnailUrl).toBe(thumb)
+  })
+
+  it('edit-grant holder can save thumbnailUrl', async () => {
+    const { row: alice } = await createTestUser(db, { password: 'pw' })
+    const { row: bob } = await createTestUser(db, { password: 'pw' })
+    const [scene] = await db
+      .insert(scenes)
+      .values({ ownerId: alice.id, name: 's', data: EMPTY_SCENE_DATA })
+      .returning()
+    await db
+      .insert(shareGrants)
+      .values({ sceneId: scene!.id, userId: bob.id, permission: 'edit', grantedBy: alice.id })
+
+    const { app } = buildAuthedApp(bob)
+    app.route('/scenes', buildScenesRouter())
+
+    const thumb = 'data:image/png;base64,iVBORw0KGgo='
+    const res = await app.request(`/scenes/${scene!.id}`, {
+      method: 'PATCH',
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ thumbnailUrl: thumb }),
+    })
+    expect(res.status).toBe(200)
+  })
+
+  it('view-grant holder cannot save thumbnailUrl', async () => {
+    const { row: alice } = await createTestUser(db, { password: 'pw' })
+    const { row: bob } = await createTestUser(db, { password: 'pw' })
+    const [scene] = await db
+      .insert(scenes)
+      .values({ ownerId: alice.id, name: 's', data: EMPTY_SCENE_DATA })
+      .returning()
+    await db
+      .insert(shareGrants)
+      .values({ sceneId: scene!.id, userId: bob.id, permission: 'view', grantedBy: alice.id })
+
+    const { app } = buildAuthedApp(bob)
+    app.route('/scenes', buildScenesRouter())
+
+    const res = await app.request(`/scenes/${scene!.id}`, {
+      method: 'PATCH',
+      headers: csrfHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ thumbnailUrl: 'data:image/png;base64,iVBORw0KGgo=' }),
+    })
+    expect(res.status).toBe(403)
+  })
+
   it('view-grant holder cannot save scene data', async () => {
     const { row: alice } = await createTestUser(db, { password: 'pw' })
     const { row: bob } = await createTestUser(db, { password: 'pw' })

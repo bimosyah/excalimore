@@ -130,6 +130,15 @@ export function buildScenesRouter(): Hono<AppEnv> {
       if (role !== 'owner') throw httpError('forbidden', 'only the owner can move a scene')
       update.folderId = body.data.folderId
     }
+    if (body.data.thumbnailUrl !== undefined) {
+      // Same gate as scene `data`: anyone with edit access can refresh the
+      // thumbnail, since it's a derivative of the elements they're allowed
+      // to change.
+      if (!roleAllows(role, 'edit')) {
+        throw httpError('forbidden', 'edit permission required to save thumbnail')
+      }
+      update.thumbnailUrl = body.data.thumbnailUrl
+    }
     if (Object.keys(update).length === 0) return c.json({ ok: true })
     update.updatedAt = new Date()
     await db.update(scenes).set(update).where(eq(scenes.id, id))
