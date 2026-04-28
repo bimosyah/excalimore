@@ -527,3 +527,117 @@
   font-size: 0.85em;
   margin-top: 0.75rem;
 }
+
+/* Folder row + per-row action menu (rename / delete) */
+.folder-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.folder-row .folder-link {
+  flex: 1;
+  min-width: 0;
+}
+.folder-menu-trigger {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  background: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #4b4b4b;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+  /* Hidden by default — revealed on row hover or when the trigger has focus
+     (keyboard a11y) or when its menu is open (aria-expanded). */
+  opacity: 0;
+}
+.folder-row:hover .folder-menu-trigger,
+.folder-row:focus-within .folder-menu-trigger,
+.folder-menu-trigger:focus-visible,
+.folder-menu-trigger[aria-expanded="true"] {
+  opacity: 1;
+}
+.folder-menu-trigger:hover {
+  border-color: #e5e5e5;
+  background: #efefef;
+  color: #1a1a1a;
+}
+.folder-menu {
+  position: absolute;
+  top: calc(100% + 2px);
+  right: 0;
+  z-index: 20;
+  min-width: 140px;
+  background: white;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  padding: 0.25rem;
+  display: flex;
+  flex-direction: column;
+}
+.folder-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  color: inherit;
+}
+.folder-menu-item:hover,
+.folder-menu-item:focus-visible {
+  background: #efefef;
+  outline: none;
+}
+.folder-menu-item--danger {
+  color: #c92a2a;
+}
+.folder-menu-item--danger:hover,
+.folder-menu-item--danger:focus-visible {
+  background: #ffe3e3;
+}
+.folder-confirm {
+  position: absolute;
+  top: calc(100% + 2px);
+  right: 0;
+  z-index: 20;
+  width: 220px;
+  background: white;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  padding: 0.6rem;
+}
+.folder-confirm-body {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.85em;
+  color: #1a1a1a;
+}
+.folder-confirm-actions {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+.folder-submit--danger {
+  background: #c92a2a;
+  color: white;
+  border-color: #c92a2a;
+}
+.folder-submit--danger:hover {
+  background: #a51e1e;
+  border-color: #a51e1e;
+}
+.folder-rename-input {
+  font-size: 0.9em;
+}
