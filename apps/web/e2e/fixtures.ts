@@ -77,6 +77,18 @@ export async function createFolder(page: Page, name: string): Promise<void> {
 }
 
 /**
+ * Open the per-row "⋯" actions menu for a sidebar folder. Hovers the row to
+ * make the trigger visible (the trigger is `opacity: 0` until hover/focus),
+ * clicks it, and waits for the menu to appear before returning.
+ */
+export async function openFolderMenu(page: Page, folderName: string): Promise<void> {
+  const row = page.locator('.folder-row', { hasText: folderName }).first()
+  await row.hover()
+  await row.getByRole('button', { name: `Folder actions for ${folderName}` }).click()
+  await expect(row.getByRole('menu')).toBeVisible()
+}
+
+/**
  * Click "+ New scene" on the home page. Waits until the editor route renders
  * (the toolbar header link "← Scenes" is the deterministic landmark).
  */
