@@ -62,6 +62,12 @@
 .app-floating-toggle--right {
   right: 0.75rem;
 }
+/* When the sidebar is collapsed, the floating toggle (32px @ left:0.75rem)
+   sits on top of `.app-main`. Push the editor header content right so the
+   "← Scenes" link doesn't disappear behind it. */
+.app-shell--sidebar-collapsed .scene-editor-header {
+  padding-left: 3.25rem;
+}
 .app-icon-button {
   display: inline-flex;
   align-items: center;
