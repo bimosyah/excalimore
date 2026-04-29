@@ -315,6 +315,7 @@ function SceneEditorPage() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <header
+        className="scene-editor-header"
         style={{
           padding: '0.75rem 1rem',
           borderBottom: '1px solid #e5e5e5',
